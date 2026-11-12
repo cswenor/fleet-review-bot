@@ -47,6 +47,20 @@ The reusable workflow is `.github/workflows/merge-gate.yml`. Pin `uses: cswenor/
 
 Callers must pass literal `source_repository: cswenor/fleet-review-bot` and `source_sha: <the-same-reviewed-full-commit>`, trigger on `pull_request_target` hold/body/draft changes and `merge_group: checks_requested`, and grant `contents: read`, `pull-requests: read`, `statuses: write`. See the workflow's complete invocation example. It publishes the explicit `merge-gate` commit status on the live PR or synthetic head, not a misleading base-SHA Actions check. Protect the caller workflow and its source pin as release authority. Queue membership is conservatively the complete contiguous prefix through the matching synthetic head; this can block an earlier entry outside the minimal group rather than risk omitting a held member.
 
+For native bot-authorized merging, also pass a protected literal
+`review_app: <your-review-App-slug>` and trigger the caller on
+`pull_request_review` actions `submitted`, `dismissed`, and `edited`.
+The gate resolves the App's canonical GitHub Bot identity and requires its
+latest decisive review to be `APPROVED` on the exact live PR head, for every
+queue member and every open PR sharing a status head. Stale, dismissed,
+wrong-App or human approvals do not satisfy this authority. Missing identity,
+review API failures and incomplete pagination block the gate. Omitted
+`review_app` preserves the generic hold-only behavior; Fleet installations
+must configure it. Bind `codex-review` to the Review App and `merge-gate` to
+GitHub Actions in live protection. A successful judge check alone does not
+prove the App published an approval; ordinary approval-count rules cannot
+select a required App reviewer.
+
 Do not add workflow concurrency to the gate or its caller: GitHub replaces pending runs even with `cancel-in-progress: false`, which can discard a held PR's status revocation. Every trigger must run its live-state evaluation.
 
 Because commit statuses are SHA-scoped, the gate checks every open PR sharing the event head, across paginated live membership, before granting success. A held/draft/incomplete PR on another branch with the same commit conservatively blocks that shared authority.

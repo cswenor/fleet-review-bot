@@ -11,8 +11,15 @@ on:
         description: 'Reviewed full commit SHA, identical to the SHA pin in jobs.<job>.uses. Never derive from PR/event input.'
         required: true
         type: string
+      review_app:
+        description: 'Optional trusted Review App slug. Requires its current exact-head APPROVE on every PR/member; empty preserves hold-only behavior.'
+        required: false
+        default: ''
+        type: string
   pull_request_target:
     types: [opened, reopened, synchronize, edited, labeled, unlabeled, ready_for_review, converted_to_draft]
+  pull_request_review:
+    types: [submitted, dismissed, edited]
   merge_group:
     types: [checks_requested]
 
@@ -70,12 +77,14 @@ jobs:
             /bot/merge-gate.mjs
       - name: Publish merge-gate on exact event head
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          REVIEW_APP: ${{ inputs.review_app }}
         with:
           script: |
             const { pathToFileURL } = require('node:url');
             const { join } = require('node:path');
             const { runHoldCheck } = await import(pathToFileURL(join(process.env.GITHUB_WORKSPACE, 'bot/hold-check.mjs')).href);
-            await runHoldCheck({ github, context, core });
+            await runHoldCheck({ github, context, core, reviewApp: process.env.REVIEW_APP || '' });
 
 # Configure branch protection/rulesets to require the merge-gate commit status
 # (GitHub Actions app) with no bypass. Reusable callers must grant statuses:write
@@ -85,6 +94,8 @@ jobs:
 # on:
 #   pull_request_target:
 #     types: [opened, reopened, synchronize, edited, labeled, unlabeled, ready_for_review, converted_to_draft]
+#   pull_request_review:
+#     types: [submitted, dismissed, edited]
 #   merge_group:
 #     types: [checks_requested]
 # permissions:
@@ -97,6 +108,7 @@ jobs:
 #     with:
 #       source_repository: OWNER/REPO
 #       source_sha: REVIEWED_40_HEX_SHA
+#       review_app: YOUR_REVIEW_APP_SLUG
 # These must be protected workflow literals, not PR-controlled expressions.
 # github.workflow_ref describes the caller in reusable contexts, so it is not
 # used to guess the called source. Caller repository code is never checked out

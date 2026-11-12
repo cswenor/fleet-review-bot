@@ -90,7 +90,7 @@ function snapshot(entries) {
   return JSON.stringify([...entries].sort((a, b) => a.position - b.position));
 }
 
-export async function runHoldCheck({ github, context, core }) {
+export async function runHoldCheck({ github, context, core, reviewApp = '' }) {
   const repo = context.repo;
   const event = context.payload;
   const group = event.merge_group;
@@ -102,8 +102,36 @@ export async function runHoldCheck({ github, context, core }) {
     await github.rest.repos.createCommitStatus({ ...repo, sha, state, context: 'merge-gate', description,
       target_url: `${context.serverUrl ?? 'https://github.com'}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}` });
   };
+  let reviewer;
+  const requireApproval = async (number, sha) => {
+    if (!reviewer) return;
+    let latest;
+    let complete = false;
+    const seen = new Set();
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { data } = await github.rest.pulls.listReviews({ ...repo, pull_number: number, per_page: 100, page });
+      requireData(Array.isArray(data) && data.length <= 100, 'Unknown review page');
+      for (const review of data) {
+        requireData(Number.isSafeInteger(review?.id) && !seen.has(review.id), 'Unknown or repeated review');
+        seen.add(review.id);
+        if (review.user?.id !== reviewer.id || review.user?.login !== reviewer.login
+          || review.user?.type !== 'Bot'
+          || !['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(review.state)) continue;
+        const time = Date.parse(review.submitted_at);
+        requireData(Number.isFinite(time) && SHA.test(review.commit_id), 'Unknown App review authority');
+        if (!latest || time > latest.time || (time === latest.time && review.id > latest.review.id)) {
+          latest = { time, review };
+        }
+      }
+      if (data.length < 100) { complete = true; break; }
+    }
+    requireData(complete, 'Review pagination limit exceeded');
+    requireData(latest?.review.state === 'APPROVED' && latest.review.commit_id === sha,
+      'Missing configured Review App exact-head approval');
+  };
   const livePull = async (number, head, base) => {
     const { data } = await github.rest.pulls.get({ ...repo, pull_number: number });
+    await requireApproval(number, data?.head?.sha);
     return inspectPull(data, { number, head, base });
   };
   const sharedHeadPulls = async () => {
@@ -118,8 +146,11 @@ export async function runHoldCheck({ github, context, core }) {
           && SHA.test(candidate.head?.sha) && typeof candidate.base?.ref === 'string', 'Unknown open PR membership');
         numbers.add(candidate.number);
         bases.add(candidate.base.ref);
-        if (candidate.head.sha === target) results.push(inspectPull(candidate,
-          { number: candidate.number, head: target, base: candidate.base.ref }));
+        if (candidate.head.sha === target) {
+          await requireApproval(candidate.number, target);
+          results.push(inspectPull(candidate,
+            { number: candidate.number, head: target, base: candidate.base.ref }));
+        }
       }
       if (data.length < 100) return { pulls: results.sort((a, b) => a.number - b.number), bases: [...bases].sort() };
     }
@@ -129,6 +160,15 @@ export async function runHoldCheck({ github, context, core }) {
   let base;
   try {
     await status(target, 'pending', 'Inspecting live holds and complete queue membership');
+    requireData(typeof reviewApp === 'string' && (!reviewApp
+      || /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(reviewApp)), 'Invalid Review App slug');
+    if (reviewApp) {
+      const login = `${reviewApp}[bot]`;
+      const { data } = await github.rest.users.getByUsername({ username: login });
+      requireData(data?.login === login && data.type === 'Bot' && Number.isSafeInteger(data.id)
+        && data.id > 0 && data.html_url === `https://github.com/apps/${reviewApp}`, 'Unknown Review App identity');
+      reviewer = { id: data.id, login };
+    }
     if (group) {
       requireData(context.eventName === 'merge_group' && event.action === 'checks_requested', 'Unsupported merge group event');
       requireData(typeof group.base_ref === 'string' && group.base_ref.startsWith('refs/heads/')
@@ -149,8 +189,9 @@ export async function runHoldCheck({ github, context, core }) {
       for (const result of results) requireData((await livePull(result.number, result.sha, base)).pass, 'Merge group member changed');
       await checkRef();
     } else {
-      requireData(context.eventName === 'pull_request_target' && Number.isSafeInteger(pull?.number)
-        && typeof pull.base?.ref === 'string', 'Unsupported or incomplete PR event');
+      requireData((context.eventName === 'pull_request_target'
+        || (context.eventName === 'pull_request_review' && ['submitted', 'dismissed', 'edited'].includes(event.action)))
+        && Number.isSafeInteger(pull?.number) && typeof pull.base?.ref === 'string', 'Unsupported or incomplete PR event');
       base = pull.base.ref;
       const result = await livePull(pull.number, target, base);
       requireData(result.pass, 'PR is held, draft, or has an unticked Gate');

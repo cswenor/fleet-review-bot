@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add an annotated-semver release workflow with verified main ancestry, full tests/image build, protected publication environment, immutable digest receipts and refusal to replace existing image tags/releases.
+- Add optional configured-App exact-head approval authority to the reusable merge gate, including every synthetic queue member, review dismissal events and fail-closed identity/pagination checks.
 
 ## 0.1.0
 
