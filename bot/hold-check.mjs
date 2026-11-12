@@ -90,14 +90,14 @@ function snapshot(entries) {
   return JSON.stringify([...entries].sort((a, b) => a.position - b.position));
 }
 
-export async function runHoldCheck({ github, context, core, reviewApp = '' }) {
-  if (context.eventName === 'workflow_run') {
-    // The signal has no write authority. Ignore its artifacts, conclusion,
-    // branch and claimed PR list: default-branch code rechecks live PRs.
+export async function runHoldCheck({ github, context, core, reviewApp = '', publishStatus }) {
+  if (context.eventName === 'approval_reconcile') {
+    // Only the independently deployed App invokes this sweep, never a
+    // PR-controlled workflow. All authority comes from fresh live API reads.
     const pulls = [];
     const seen = new Set();
     try {
-      requireData(context.payload?.action === 'completed', 'Unsupported review signal');
+      requireData(context.payload?.action === 'reconcile', 'Unsupported approval reconcile');
       let complete = false;
       for (let page = 1; page <= MAX_PAGES; page++) {
         const { data } = await github.rest.pulls.list({ ...context.repo, state: 'open', per_page: 100, page });
@@ -112,7 +112,7 @@ export async function runHoldCheck({ github, context, core, reviewApp = '' }) {
       requireData(complete, 'Review-signal PR pagination limit exceeded');
       let pass = true;
       for (const pr of pulls) {
-        const result = await runHoldCheck({ github, core, reviewApp,
+        const result = await runHoldCheck({ github, core, reviewApp, publishStatus,
           context: { ...context, eventName: 'pull_request_target', payload: { action: 'edited', pull_request: pr } } });
         pass = result && pass;
       }
@@ -130,6 +130,7 @@ export async function runHoldCheck({ github, context, core, reviewApp = '' }) {
   requireData(SHA.test(target), 'Missing event target SHA');
   const status = async (sha, state, description) => {
     requireData(SHA.test(sha), 'Invalid status SHA');
+    if (publishStatus) return publishStatus(sha, state, description);
     await github.rest.repos.createCommitStatus({ ...repo, sha, state, context: 'merge-gate', description,
       target_url: `${context.serverUrl ?? 'https://github.com'}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}` });
   };

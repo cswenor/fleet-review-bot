@@ -223,7 +223,7 @@ test('configured App requires exact-head approval, not a stale, dismissed, human
 });
 
 test('latest decisive App review revokes an earlier approval; comment-only reviews do not', async () => {
-  const options = { event: 'workflow_run', payload: { action: 'completed' } };
+  const options = { event: 'approval_reconcile', payload: { action: 'reconcile' } };
   for (const state of ['DISMISSED', 'CHANGES_REQUESTED']) {
     const h = appHarness(options, () => [appReview(),
       appReview({ id: 2, state, submitted_at: '2026-11-12T13:00:00Z' })]);
@@ -267,14 +267,14 @@ test('App identity and unavailable or unstable review pagination fail closed', a
 
 test('approval revoked between authority reads prevents success', async () => {
   let reads = 0;
-  const h = appHarness({ event: 'workflow_run', payload: { action: 'completed' } },
+  const h = appHarness({ event: 'approval_reconcile', payload: { action: 'reconcile' } },
     () => [appReview({ state: ++reads > 1 ? 'DISMISSED' : 'APPROVED' })]);
   assert.equal(await runHoldCheck(h), false);
   assert.ok(!h.statuses.some((s) => s.state === 'success'));
 });
 
-test('untrusted signal metadata cannot select authority or hide live PRs', async () => {
-  const h = appHarness({ event: 'workflow_run', payload: { action: 'completed',
+test('reconciliation cannot select authority or hide live PRs via extra payload metadata', async () => {
+  const h = appHarness({ event: 'approval_reconcile', payload: { action: 'reconcile',
     workflow_run: { conclusion: 'success', pull_requests: [], review_app: '', head_sha: base } } },
   ({ pull_number }) => pull_number === 1 ? [appReview()] : []);
   assert.equal(await runHoldCheck(h), false);
@@ -295,8 +295,8 @@ test('unapproved PR outside the queue cannot revoke approved synthetic authority
     ({ pull_number }) => pull_number === 3 ? [] : [appReview()]);
   h.github.rest.pulls.list = async () => ({ data: [pull(1), pull(2), extra] });
   assert.equal(await runHoldCheck(h), true);
-  h.context.eventName = 'workflow_run';
-  h.context.payload = { action: 'completed' };
+  h.context.eventName = 'approval_reconcile';
+  h.context.payload = { action: 'reconcile' };
   assert.equal(await runHoldCheck(h), false);
   assert.equal(h.statuses.findLast((status) => status.sha === head).state, 'success');
   assert.equal(h.statuses.findLast((status) => status.sha === extra.head.sha).state, 'failure');

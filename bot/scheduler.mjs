@@ -56,12 +56,12 @@ function safeErrorCause(error, depth = 0) {
 export class Scheduler {
   constructor({ store, github, publisher, mirror, verdict, approval, admission, fetchImpl = fetch, runnerUrl = 'http://runner:8081', mode = 'advisory',
     concurrency = 2, retentionDays = 180, workRoot = '/work', sessionsRoot = '/sessions', now = Date.now, log = () => {},
-    shepherd = null, revision = null, batchAuthor = null, batchMirror = null, batchMaxSize = 5,
+    shepherd = null, approvalGate = null, revision = null, batchAuthor = null, batchMirror = null, batchMaxSize = 5,
     batchCollectSeconds = 180, batchEnabled = false, mergeLaneEnabled = true, batchReadProof, batchConfirmTree, readMergeDrain = async () => null, reconcileIntervalMs = 60000 }) {
     if (typeof mergeLaneEnabled !== 'boolean') throw new Error('Invalid mergeLaneEnabled');
     if (!Number.isInteger(reconcileIntervalMs) || reconcileIntervalMs < 60000 || reconcileIntervalMs > 300000) throw new Error('Invalid reconcile interval (60000–300000 ms)');
     Object.assign(this, { store, github, publisher, mirror, verdict, approval, admission, fetch: fetchImpl, runnerUrl, mode, concurrency,
-      retentionDays, workRoot, sessionsRoot, now, log, revision, readMergeDrain, reconcileIntervalMs, mergeLaneEnabled });
+      retentionDays, workRoot, sessionsRoot, now, log, revision, readMergeDrain, reconcileIntervalMs, mergeLaneEnabled, approvalGate });
     this.shepherd = mergeLaneEnabled ? shepherd : null;
     this.lastReconcileAt = 0;
     this.lastReconcileOkAt = null;
@@ -303,6 +303,7 @@ export class Scheduler {
     const payload = JSON.parse(delivery.payload_json);
     if (!payload || typeof payload !== 'object') throw new Error('Delivery payload unavailable');
     this.dirtyDelivery(delivery.event, payload);
+    await this.approvalGate?.delivery(delivery.event, payload);
     const pr = payload.pull_request;
     const completed = pr ? Boolean(this.store.latest(pr.number ?? payload.number, pr.head?.sha)) : false;
     if (this.mode !== 'off') for (const operation of this.deliveryOperations(delivery.event, payload, {
@@ -1617,6 +1618,7 @@ export class Scheduler {
       await this.resumeCancellationTerminals();
       if (this.mode === 'off') { await this.reconcileArmed(); return; }
       if (this.now() < this.github?.retryAt) return;
+      await this.approvalGate?.reconcile();
       await this.resumeRestartTerminals();
       await this.reconcileRerequests();
       await this.retryReceivedNow();

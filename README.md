@@ -47,28 +47,48 @@ The reusable workflow is `.github/workflows/merge-gate.yml`. Pin `uses: cswenor/
 
 Callers must pass literal `source_repository: cswenor/fleet-review-bot` and `source_sha: <the-same-reviewed-full-commit>`, trigger on `pull_request_target` hold/body/draft changes and `merge_group: checks_requested`, and grant `contents: read`, `pull-requests: read`, `statuses: write`. See the workflow's complete invocation example. It publishes the explicit `merge-gate` commit status on the live PR or synthetic head, not a misleading base-SHA Actions check. Protect the caller workflow and its source pin as release authority. Queue membership is conservatively the complete contiguous prefix through the matching synthetic head; this can block an earlier entry outside the minimal group rather than risk omitting a held member.
 
-For native bot-authorized merging, also pass a protected literal
-`review_app: <your-review-App-slug>`. Install `review-gate-signal.yml` (pinned
-from this source) as a separate **unprivileged** `pull_request_review` signal
-workflow, and trigger the trusted caller on `workflow_run` completion of
-`Review gate signal`. Never give `pull_request_review` a status-write token:
-its workflow configuration is PR-controlled and fork tokens cannot revoke
-statuses. The default-branch-controlled completion handler ignores signal
-artifacts, branch, conclusion and claimed membership, then sweeps all live
-open PRs using fresh GitHub authority reads.
+### App-owned approval gate (native bot mode)
+
+With `MERGE_LANE_ENABLED=false`, the independently deployed Review App publishes
+`app-approval` check runs using its own installation identity. Require both
+`app-approval` and `codex-review` bound to that Review App integration ID, plus
+the project's required CI. The generic Actions `merge-gate` remains hold-only;
+it is not the configured App's approval authority.
+
+Signed `pull_request_review` submitted/edited/dismissed, PR head/hold/body/draft
+changes, and `merge_group: checks_requested` cause fresh live-state evaluation.
+The scheduler also rechecks every open PR and current synthetic queue ref every
+60 seconds, independently of whether a review job is active. PR-controlled
+workflows, webhook review bodies, workflow artifacts and human approvals never
+grant authority. A PR cannot suppress this service's webhook subscriptions by
+editing its workflow files. No Actions-write or repository-dispatch permission
+is needed.
+
+The gate resolves the App's canonical Bot identity and requires its latest
+decisive review to be `APPROVED` on the exact live head, for every queue member
+and every open PR sharing a check head. Stale, dismissed, wrong-App or human
+reviews do not satisfy it. Missing identity, API failures or incomplete
+pagination block the gate. New heads have no success until evaluated.
 Missing approvals revoke only queue prefixes containing that PR or its shared
-head, not unrelated approved groups. A revoked synthetic group needs a fresh
-`merge_group` evaluation (dequeue/requeue if GitHub does not emit one).
-The gate resolves the App's canonical GitHub Bot identity and requires its
-latest decisive review to be `APPROVED` on the exact live PR head, for every
-queue member and every open PR sharing a status head. Stale, dismissed,
-wrong-App or human approvals do not satisfy this authority. Missing identity,
-review API failures and incomplete pagination block the gate. Omitted
-`review_app` preserves the generic hold-only behavior; Fleet installations
-must configure it. Bind `codex-review` to the Review App and `merge-gate` to
-GitHub Actions in live protection. A successful judge check alone does not
-prove the App published an approval; ordinary approval-count rules cannot
-select a required App reviewer.
+head, not unrelated approved groups; periodic reconciliation reevaluates
+current groups after approval returns.
+
+A successful `codex-review` judge check alone does not prove an approval was
+published. Ordinary approval-count rules cannot select a required App reviewer.
+
+### Minimal native App permissions
+
+| App | Repository permissions | Used endpoints / events |
+|---|---|---|
+| Review | contents read; pull_requests write; checks write; actions read; issues read; statuses read; implicit metadata read | Mirror contents/commits; PR reviews/comments; codex-review and app-approval checks; CI run/job reads; issue-comment reads; status invalidation. No legacy merge/update-branch/label writes. |
+| Builder | contents write; pull_requests write; implicit metadata read | Native branch publication and PR creation/comments/auto-merge. No administration, ruleset, Actions write or legacy batch permissions. Workflow-file publication requires a separately approved workflows permission. |
+
+Review webhook subscriptions: `pull_request`, `pull_request_review`,
+`pull_request_review_comment`, `issue_comment`, `check_run`, `check_suite`,
+`status`, `push`, `workflow_run`, `merge_group`. Builder needs no webhook events.
+Keep both Apps private and install with **Only select repositories**, selecting
+exactly the instance's repository. Installation tooling must verify this scope;
+a manifest alone cannot enforce repository selection.
 
 Do not add workflow concurrency to the gate or its caller: GitHub replaces pending runs even with `cancel-in-progress: false`, which can discard a held PR's status revocation. Every trigger must run its live-state evaluation.
 

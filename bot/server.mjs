@@ -12,6 +12,7 @@ import { Mirror } from './mirror.mjs';
 import { Scheduler } from './scheduler.mjs';
 import { VerdictService } from './verdict-service.mjs';
 import { Approval } from './approval.mjs';
+import { ApprovalGate } from './approval-gate.mjs';
 import { Shepherd } from './shepherd.mjs';
 import { BatchAuthor } from './batch-author.mjs';
 import { BatchMirror } from './batch-mirror.mjs';
@@ -218,6 +219,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (!encodedKey || !/^[A-Za-z0-9+/]+={0,2}$/u.test(encodedKey)) throw new Error('Invalid GITHUB_APP_PRIVATE_KEY_B64');
   const budget = new GitHubBudget({ store, scope: `${REVIEW_APP_ID}:${REPOSITORY}`, log });
   const github = new GitHubApp({ appId: REVIEW_APP_ID, privateKey: Buffer.from(encodedKey, 'base64').toString('utf8'), repo: REPOSITORY, log, budget });
+  const approvalGate = laneConfig.mergeLaneEnabled || requestedMode === 'off' ? null : new ApprovalGate({ github });
   const approval = new Approval({ store, github, mode: requestedMode, ...laneConfig, log,
     admit: async () => (await admission.refresh({ fresh: true })).mode === 'approve' });
   const secrets = [token, judgeToken].filter(Boolean);
@@ -235,7 +237,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     verdict = new VerdictService({ mirror, token, judgeToken });
     if (laneConfig.mergeLaneEnabled) shepherd = new Shepherd({ github, store, secrets, log });
   }
-  const scheduler = new Scheduler({ store, github, publisher, mirror, verdict, approval,
+  const scheduler = new Scheduler({ store, github, publisher, mirror, verdict, approval, approvalGate,
     runnerUrl, mode, admission, concurrency, retentionDays, workRoot, sessionsRoot, log, shepherd, revision,
     batchAuthor, batchMirror, ...batchConfig, ...laneConfig,
     reconcileIntervalMs: Number(env.RECONCILE_INTERVAL_MS ?? 60000),
