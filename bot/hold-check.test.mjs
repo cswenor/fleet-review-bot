@@ -288,3 +288,26 @@ test('PR-controlled review trigger has no direct merge-gate authority', async ()
   assert.equal(await runHoldCheck(h), false);
   assert.ok(!h.statuses.some((s) => s.state === 'success'));
 });
+
+test('unapproved PR outside the queue cannot revoke approved synthetic authority during review sweep', async () => {
+  const extra = pull(3, { head: { sha: sha('f') } });
+  const h = appHarness({ pulls: { 3: extra } },
+    ({ pull_number }) => pull_number === 3 ? [] : [appReview()]);
+  h.github.rest.pulls.list = async () => ({ data: [pull(1), pull(2), extra] });
+  assert.equal(await runHoldCheck(h), true);
+  h.context.eventName = 'workflow_run';
+  h.context.payload = { action: 'completed' };
+  assert.equal(await runHoldCheck(h), false);
+  assert.equal(h.statuses.findLast((status) => status.sha === head).state, 'success');
+  assert.equal(h.statuses.findLast((status) => status.sha === extra.head.sha).state, 'failure');
+});
+
+test('a later queued member losing approval revokes only prefixes containing it', async () => {
+  const second = pull(2, { head: { sha: sha('e') } });
+  const queue = [entries[0], { ...entries[1], pullRequest: { number: 2, headRefOid: second.head.sha } }];
+  const h = appHarness({ queue, pulls: { 2: second }, event: 'pull_request_target',
+    payload: { action: 'edited', pull_request: second } }, () => []);
+  assert.equal(await runHoldCheck(h), false);
+  assert.equal(h.statuses.findLast((status) => status.sha === head).state, 'failure');
+  assert.ok(!h.statuses.some((status) => status.sha === middle));
+});

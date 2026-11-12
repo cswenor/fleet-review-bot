@@ -56,6 +56,9 @@ its workflow configuration is PR-controlled and fork tokens cannot revoke
 statuses. The default-branch-controlled completion handler ignores signal
 artifacts, branch, conclusion and claimed membership, then sweeps all live
 open PRs using fresh GitHub authority reads.
+Missing approvals revoke only queue prefixes containing that PR or its shared
+head, not unrelated approved groups. A revoked synthetic group needs a fresh
+`merge_group` evaluation (dequeue/requeue if GitHub does not emit one).
 The gate resolves the App's canonical GitHub Bot identity and requires its
 latest decisive review to be `APPROVED` on the exact live PR head, for every
 queue member and every open PR sharing a status head. Stale, dismissed,

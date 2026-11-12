@@ -246,16 +246,19 @@ export async function runHoldCheck({ github, context, core, reviewApp = '' }) {
   } catch (error) {
     await status(target, 'failure', 'Hold gate blocked or live membership could not be verified');
     if (!group && base) {
-      // A hold can arrive after enqueue. Conservatively revoke every observable
-      // queue head on this base, not only the changed PR's own synthetic head:
-      // later groups may include it. A fresh group evaluation is then required.
-      // GitHub has no atomic read/check/merge API: delivery delays, API failure,
-      // or a concurrent successful writer can race this revocation. This is not
-      // a race-free merge guarantee; enforce required merge-gate without bypass.
+      // Hold-only callers retain conservative base-wide revocation. When App
+      // approvals are required, ordinary unapproved PRs are expected: revoke
+      // only queue prefixes containing this PR (or its SHA-scoped authority).
+      // GitHub has no atomic read/check/merge API; this is not a race-free
+      // guarantee. A revoked group requires a fresh group evaluation.
       try {
         entries = await readQueue(github, repo, base);
-        for (const sha of new Set(entries.map((entry) => entry?.headCommit?.oid))) {
-          await status(sha, 'failure', 'PR hold event invalidated queue authority; re-evaluation required');
+        const affected = reviewApp ? entries.filter((entry) =>
+          groupMembers({ head_sha: entry?.headCommit?.oid, base_sha: entry?.baseCommit?.oid }, entries)
+            .some((member) => member.pullRequest.number === pull.number || member.pullRequest.headRefOid === target))
+          : entries;
+        for (const sha of new Set(affected.map((entry) => entry?.headCommit?.oid))) {
+          await status(sha, 'failure', 'PR hold or approval invalidated queue authority; re-evaluation required');
         }
       } catch (invalidationError) {
         core.error(`Queue authority could not be fully invalidated: ${invalidationError.message}`);
