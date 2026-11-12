@@ -58,7 +58,7 @@ it is not the configured App's approval authority.
 Signed `pull_request_review` submitted/edited/dismissed, PR head/hold/body/draft
 changes, and `merge_group: checks_requested` cause fresh live-state evaluation.
 The scheduler also rechecks every open PR and current synthetic queue ref every
-60 seconds, independently of whether a review job is active. PR-controlled
+300 seconds, independently of whether a review job is active. PR-controlled
 workflows, webhook review bodies, workflow artifacts and human approvals never
 grant authority. A PR cannot suppress this service's webhook subscriptions by
 editing its workflow files. No Actions-write or repository-dispatch permission
@@ -72,6 +72,9 @@ pagination block the gate. New heads have no success until evaluated.
 Missing approvals revoke only queue prefixes containing that PR or its shared
 head, not unrelated approved groups; periodic reconciliation reevaluates
 current groups after approval returns.
+Only publication receipts and immutable Bot identity are cached; approval,
+hold and queue authority are always read afresh. Unchanged results are not
+republished, avoiding check-event churn and unnecessary review API consumption.
 
 A successful `codex-review` judge check alone does not prove an approval was
 published. Ordinary approval-count rules cannot select a required App reviewer.

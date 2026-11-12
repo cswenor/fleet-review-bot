@@ -62,7 +62,7 @@ function fixture({ pulls = [pr(1)], queue = [], refs = [] } = {}) {
   const gate = new ApprovalGate({ github, now: () => clock });
   const delivery = (event, action, pull = pulls[0]) => gate.delivery(event,
     { action, repository: { full_name: repository }, pull_request: pull });
-  return { gate, github, checks, writes, reviews, pulls, delivery, advance: () => { clock += 60001; } };
+  return { gate, github, checks, writes, reviews, pulls, delivery, advance: () => { clock += 300001; } };
 }
 
 const result = (f, head = sha('a')) => f.checks.filter((check) => check.head_sha === head && check.name === APPROVAL_GATE).at(-1);
@@ -117,6 +117,9 @@ test('periodic queue checks require every member and recover after valid approva
   await f.gate.reconcile();
   assert.equal(result(f, sha('d')).conclusion, 'success');
   assert.equal(result(f, sha('e')).conclusion, 'success');
+  assert.ok(f.writes.filter((write) => [sha('d'), sha('e')].includes(write.head_sha))
+    .every((write) => write.status === 'in_progress' || write.conclusion === 'success'),
+  'Healthy queue heads must never receive a temporary failure while being checked');
   f.reviews.set(2, [{ ...approved(sha('b'))[0], state: 'DISMISSED' }]);
   f.advance();
   await f.gate.reconcile();
