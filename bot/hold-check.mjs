@@ -254,14 +254,14 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
     return true;
   } catch (error) {
     await status(target, 'failure', 'Hold gate blocked or live membership could not be verified');
-    if (!group && base) {
+    if (!group && (base || reviewApp)) {
       // Hold-only callers retain conservative base-wide revocation. When App
       // approvals are required, ordinary unapproved PRs are expected: revoke
       // only queue prefixes containing this PR (or its SHA-scoped authority).
       // GitHub has no atomic read/check/merge API; this is not a race-free
       // guarantee. A revoked group requires a fresh group evaluation.
       try {
-        entries = await readQueue(github, repo, base);
+        entries = await readQueue(github, repo, reviewApp ? 'main' : base);
         const affected = reviewApp ? entries.filter((entry) =>
           groupMembers({ head_sha: entry?.headCommit?.oid, base_sha: entry?.baseCommit?.oid }, entries)
             .some((member) => member.pullRequest.number === pull.number || member.pullRequest.headRefOid === target))

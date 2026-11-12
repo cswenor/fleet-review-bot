@@ -28,7 +28,7 @@ function fixture({ pulls = [pr(1)], queue = [], refs = [] } = {}) {
   let sequence = 0;
   const github = {
     repo: repository, appId: 1007,
-    graphql: async () => ({ repository: { mergeQueue: queue.length ? { entries: {
+    graphql: async (_query, { branch }) => ({ repository: { mergeQueue: branch === 'main' && queue.length ? { entries: {
       nodes: queue, totalCount: queue.length, pageInfo: { hasNextPage: false, endCursor: null },
     } } : null } }),
     paginate: async (path) => {
@@ -239,4 +239,19 @@ test('restart plus unavailable queue discovery revokes durable prior success ins
   f.advance();
   await gate.reconcile();
   assert.equal(result(f, sha('d')).conclusion, 'success');
+});
+
+test('opening a cross-base shared-head PR immediately revokes main queue authority', async () => {
+  const queue = [{ position: 1, baseCommit: { oid: sha('c') }, headCommit: { oid: sha('d') },
+    pullRequest: { number: 1, headRefOid: sha('a') } }];
+  const refs = [{ ref: 'refs/heads/gh-readonly-queue/main/pr-1-fixture', object: { sha: sha('d') } }];
+  const f = fixture({ queue, refs });
+  await f.gate.reconcile();
+  assert.equal(result(f, sha('d')).conclusion, 'success');
+  const alias = pr(2);
+  alias.base.ref = 'release';
+  f.pulls.push(alias);
+  f.reviews.set(2, approved());
+  await f.delivery('pull_request', 'opened', alias);
+  assert.equal(result(f, sha('d')).conclusion, 'failure');
 });
