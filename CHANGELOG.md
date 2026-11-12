@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add an annotated-semver release workflow with verified main ancestry, full tests/image build, protected publication environment, immutable digest receipts and refusal to replace existing image tags/releases.
+
+## 0.1.0
+
 - Extract a project-neutral, single-repository review bot with synthetic fixtures and fresh public history.
 - Default to review-only: both custom merge lane and batch merging are disabled.
 - Keep native GitHub auto-merge/queue as the supported release path, with required hold enforcement and explicit release authority.

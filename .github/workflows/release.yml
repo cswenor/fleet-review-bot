@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-images
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - name: Validate release source
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git merge-base --is-ancestor HEAD origin/main
+          test "$(git cat-file -t "$TAG")" = tag
+          test "$(git rev-parse "$TAG^{commit}")" = "$GITHUB_SHA"
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const version = process.env.TAG.slice(1); if (!readFileSync("CHANGELOG.md", "utf8").split("\n").includes(`## ${version}`)) throw new Error("Missing versioned changelog entry");'
+      - run: env -u GITHUB_REPOSITORY node --env-file=bot/test.env --test --test-concurrency=4 bot/*.test.mjs
+      - run: docker build --platform linux/amd64 --build-arg "GIT_SHA=$GITHUB_SHA" -f bot/Dockerfile .
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # Configure required reviewers on this environment before the first tag.
+    environment: release
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Publish source-pinned image and receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          # A published release is a terminal boundary, not an update target.
+          releases="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq '.[].tag_name')"
+          if printf '%s\n' "$releases" | grep -Fxq "$TAG"; then
+            echo 'Release already exists; refusing replacement.' >&2
+            exit 1
+          fi
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1' EXIT
+          # Query authenticated registry metadata. Only an explicit unknown
+          # manifest is absence; transport/permission failures refuse publication.
+          for reference in "$image:$TAG" "$image:sha-$GITHUB_SHA"; do
+            if docker manifest inspect "$reference" >manifest.json 2>manifest.error; then
+              echo 'Image tag already exists; refusing replacement.' >&2
+              exit 1
+            fi
+            if ! grep -Eqi 'manifest unknown|no such manifest' manifest.error; then
+              echo 'Cannot establish image tag absence; refusing publication.' >&2
+              exit 1
+            fi
+          done
+          docker buildx build --platform linux/amd64 \
+            --build-arg "GIT_SHA=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --tag "$image:$TAG" --tag "$image:sha-$GITHUB_SHA" \
+            --metadata-file image-metadata.json --push -f bot/Dockerfile .
+          IMAGE="$image" node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const digest = JSON.parse(readFileSync('image-metadata.json', 'utf8'))['containerimage.digest'];
+          if (!/^sha256:[a-f0-9]{64}$/.test(digest)) throw new Error('Missing registry digest');
+          writeFileSync('release.json', JSON.stringify({
+            version: process.env.TAG, repository: process.env.GITHUB_REPOSITORY,
+            commit: process.env.GITHUB_SHA, image: `${process.env.IMAGE}@${digest}`,
+            platform: 'linux/amd64', run: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+          }, null, 2) + '\n');
+          NODE
+          # The owner must make a first GHCR package public after this run.
+          # Installation acceptance separately requires an anonymous digest pull.
+          gh release create "$TAG" release.json --verify-tag --title "$TAG" \
+            --notes "Source and immutable image pin are recorded in release.json. Consumers opt into upgrades explicitly; see CHANGELOG.md."
