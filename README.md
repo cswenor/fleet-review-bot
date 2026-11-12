@@ -67,6 +67,34 @@ CI runs the full existing suite and real Linux image build, without pushing or d
 
 Changes require PRs, green final-head CI and an independent read-only unadvised review. Release with semver tags and CHANGELOG entries; build an immutable source-SHA image and retain its registry digest. Consumers opt into updates explicitly. Before schema-changing rollout, back up SQLite with writers stopped and document backward compatibility; do not assume an older image can read new state. Keep rollback image/config/state receipts per instance.
 
+### Release procedure
+
+Before the first release, configure the GitHub `release` environment with required
+owner/Main reviewers and disallow self-approval. Restrict release tag creation to
+authorized maintainers with a tag ruleset; never grant builders a bypass.
+The workflow does not establish those GitHub settings itself.
+After independent review, green final-head CI and explicit release GO, a
+maintainer creates an **annotated** `vMAJOR.MINOR.PATCH` tag on that approved
+commit in `main` history. The matching `## MAJOR.MINOR.PATCH` changelog heading
+must exist. Pushing that tag runs `Release`: tests and the real image build run
+before the protected publication job. No moving `latest` tag is published.
+
+The release asset `release.json` records the full source commit, exact
+`ghcr.io/...@sha256:...` image, platform and workflow URL. Both semver and
+`sha-<full-commit>` tags are write-once by workflow policy; existing tags or
+releases refuse replacement. Registry administrators can still change/delete
+tags: consumers must use the digest, never trust tag immutability alone.
+GHCR creates a first package private by default. After the first authorized
+publication, the owner must make that package public in its GitHub package
+settings and verify an anonymous pull of the receipt's digest before accepting
+it for installation. Public source does not prove a public package.
+
+An interrupted publication can leave an image without a release. Preserve the
+run's metadata/digest; do not delete/repoint tags or blindly rerun. Reconcile
+the exact image revision and successful verification job, then have the
+authorized maintainer publish the missing receipt/release only. No image
+rebuild or new digest is implied by that recovery.
+
 ## Provenance
 
 Derived from an existing single-repository review bot and its maintained fork, including exact-head approval, budget/authority fencing, review-only isolation and durable recovery fixes. This public repository starts with one sanitized root commit; private source history, deployment identifiers and captured project content are intentionally not distributed.
