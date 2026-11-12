@@ -255,3 +255,29 @@ test('opening a cross-base shared-head PR immediately revokes main queue authori
   await f.delivery('pull_request', 'opened', alias);
   assert.equal(result(f, sha('d')).conclusion, 'failure');
 });
+
+test('restart after an accepted success with a lost response reads and revokes remote authority', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'approval-ambiguous-'));
+  const path = join(directory, 'state.sqlite');
+  let store = new Store(path);
+  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
+  const f = fixture();
+  let gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  await gate.publish(sha('a'), 'failure', 'Initially blocked');
+  const request = f.github.request;
+  f.github.request = async (method, path, body) => {
+    const response = await request(method, path, body);
+    if (method === 'PATCH' && body.conclusion === 'success') throw new Error('Response lost after acceptance');
+    return response;
+  };
+  await assert.rejects(gate.publish(sha('a'), 'success', 'Live approval verified'));
+  assert.equal(result(f).conclusion, 'success');
+  store.close();
+  store = new Store(path);
+  gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  f.reviews.set(1, []);
+  await gate.delivery('pull_request_review', {
+    action: 'dismissed', repository: { full_name: repository }, pull_request: f.pulls[0],
+  });
+  assert.equal(result(f).conclusion, 'failure');
+});

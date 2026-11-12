@@ -88,6 +88,10 @@ export class ApprovalGate {
       body.completed_at = new Date(this.now()).toISOString();
     }
     try {
+      // The remote write may succeed without a response, or outlive this process.
+      // A restart must read GitHub, never trust the previous local conclusion.
+      this.store?.run('UPDATE approval_gate_heads SET check_run_id=NULL,conclusion=NULL WHERE app_id=? AND repo=? AND head_sha=?',
+        this.github.appId, this.github.repo, sha);
       const receipt = await this.github.request(existing ? 'PATCH' : 'POST',
         existing ? `${this.base}/check-runs/${existing.id}` : `${this.base}/check-runs`, body);
       if (!Number.isSafeInteger(receipt?.id) || receipt.head_sha !== sha
