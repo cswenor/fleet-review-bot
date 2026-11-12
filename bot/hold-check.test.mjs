@@ -191,3 +191,125 @@ test('native auto-merge can pass without an enabled merge queue', async () => {
   assert.equal(await runHoldCheck(h), true);
   assert.equal(h.statuses.at(-1).state, 'success');
 });
+
+const appUser = { id: 1007, login: 'example-review[bot]', type: 'Bot',
+  html_url: 'https://github.com/apps/example-review' };
+const appReview = (changes = {}) => ({ id: 1, user: appUser, state: 'APPROVED',
+  commit_id: prHead, submitted_at: '2026-11-12T12:00:00Z', ...changes });
+function appHarness(options = {}, reviews = () => [appReview()]) {
+  const h = harness(options);
+  h.reviewApp = 'example-review';
+  h.github.rest.users = { getByUsername: async () => ({ data: appUser }) };
+  h.github.rest.pulls.listReviews = async (args) => ({ data: reviews(args) });
+  h.github.rest.pulls.list = async () => ({ data: [1, 2].map((number) =>
+    typeof options.pulls?.[number] === 'object' ? options.pulls[number] : pull(number)) });
+  return h;
+}
+
+test('configured App requires exact-head approval, not a stale, dismissed, human or wrong-App review', async () => {
+  const options = { event: 'pull_request_target', payload: { action: 'edited', pull_request: pull(1) } };
+  const valid = appHarness(options);
+  assert.equal(await runHoldCheck(valid), true);
+  assert.equal(valid.statuses.at(-1).state, 'success');
+  for (const review of [
+    null, appReview({ commit_id: base }), appReview({ state: 'DISMISSED' }),
+    appReview({ user: { ...appUser, id: 1008 } }),
+    appReview({ user: { ...appUser, login: 'different-review[bot]' } }),
+    appReview({ user: { ...appUser, type: 'User' } }),
+  ]) {
+    const h = appHarness(options, () => review ? [review] : []);
+    assert.equal(await runHoldCheck(h), false);
+    assert.equal(h.statuses.at(-1).state, 'failure');
+    assert.ok(!h.statuses.some((s) => s.state === 'success'));
+  }
+});
+
+test('latest decisive App review revokes an earlier approval; comment-only reviews do not', async () => {
+  const options = { event: 'approval_reconcile', payload: { action: 'reconcile' } };
+  for (const state of ['DISMISSED', 'CHANGES_REQUESTED']) {
+    const h = appHarness(options, () => [appReview(),
+      appReview({ id: 2, state, submitted_at: '2026-11-12T13:00:00Z' })]);
+    assert.equal(await runHoldCheck(h), false);
+    assert.ok(!h.statuses.some((s) => s.state === 'success'));
+  }
+  const comment = appHarness(options, () => [appReview(),
+    appReview({ id: 2, state: 'COMMENTED', submitted_at: '2026-11-12T13:00:00Z' })]);
+  assert.equal(await runHoldCheck(comment), true);
+});
+
+test('every queue member needs its own exact-head App approval', async () => {
+  const wrongHead = sha('e');
+  const queue = [entries[0], { ...entries[1], pullRequest: { number: 2, headRefOid: wrongHead } }];
+  const options = { queue, pulls: { 2: pull(2, { head: { sha: wrongHead } }) } };
+  const denied = appHarness(options, () => [appReview()]);
+  assert.equal(await runHoldCheck(denied), false);
+  assert.equal(denied.statuses.findLast((s) => s.sha === head).state, 'failure');
+  const valid = appHarness(options, ({ pull_number }) => [
+    appReview({ commit_id: pull_number === 2 ? wrongHead : prHead }),
+  ]);
+  assert.equal(await runHoldCheck(valid), true);
+  assert.equal(valid.statuses.at(-1).sha, head);
+  assert.equal(valid.statuses.at(-1).state, 'success');
+});
+
+test('App identity and unavailable or unstable review pagination fail closed', async () => {
+  const options = { event: 'pull_request_target', payload: { action: 'edited', pull_request: pull(1) } };
+  const identity = appHarness(options);
+  identity.github.rest.users.getByUsername = async () => ({ data: { ...appUser, type: 'User' } });
+  assert.equal(await runHoldCheck(identity), false);
+  const unavailable = appHarness(options, () => { throw new Error('API unavailable'); });
+  assert.equal(await runHoldCheck(unavailable), false);
+  const repeated = appHarness(options, () => Array.from({ length: 100 }, () => appReview()));
+  assert.equal(await runHoldCheck(repeated), false);
+  const later = appHarness(options, ({ page }) => page === 1
+    ? Array.from({ length: 100 }, (_, i) => appReview({ id: i + 10, user: { id: 123 } }))
+    : [appReview()]);
+  assert.equal(await runHoldCheck(later), true);
+});
+
+test('approval revoked between authority reads prevents success', async () => {
+  let reads = 0;
+  const h = appHarness({ event: 'approval_reconcile', payload: { action: 'reconcile' } },
+    () => [appReview({ state: ++reads > 1 ? 'DISMISSED' : 'APPROVED' })]);
+  assert.equal(await runHoldCheck(h), false);
+  assert.ok(!h.statuses.some((s) => s.state === 'success'));
+});
+
+test('reconciliation cannot select authority or hide live PRs via extra payload metadata', async () => {
+  const h = appHarness({ event: 'approval_reconcile', payload: { action: 'reconcile',
+    workflow_run: { conclusion: 'success', pull_requests: [], review_app: '', head_sha: base } } },
+  ({ pull_number }) => pull_number === 1 ? [appReview()] : []);
+  assert.equal(await runHoldCheck(h), false);
+  assert.ok(h.errors.some((error) => error.includes('exact-head approval')));
+  assert.ok(h.statuses.some((s) => s.sha === prHead && s.state === 'failure'));
+});
+
+test('PR-controlled review trigger has no direct merge-gate authority', async () => {
+  const h = appHarness({ event: 'pull_request_review',
+    payload: { action: 'submitted', pull_request: pull(1) } });
+  assert.equal(await runHoldCheck(h), false);
+  assert.ok(!h.statuses.some((s) => s.state === 'success'));
+});
+
+test('unapproved PR outside the queue cannot revoke approved synthetic authority during review sweep', async () => {
+  const extra = pull(3, { head: { sha: sha('f') } });
+  const h = appHarness({ pulls: { 3: extra } },
+    ({ pull_number }) => pull_number === 3 ? [] : [appReview()]);
+  h.github.rest.pulls.list = async () => ({ data: [pull(1), pull(2), extra] });
+  assert.equal(await runHoldCheck(h), true);
+  h.context.eventName = 'approval_reconcile';
+  h.context.payload = { action: 'reconcile' };
+  assert.equal(await runHoldCheck(h), false);
+  assert.equal(h.statuses.findLast((status) => status.sha === head).state, 'success');
+  assert.equal(h.statuses.findLast((status) => status.sha === extra.head.sha).state, 'failure');
+});
+
+test('a later queued member losing approval revokes only prefixes containing it', async () => {
+  const second = pull(2, { head: { sha: sha('e') } });
+  const queue = [entries[0], { ...entries[1], pullRequest: { number: 2, headRefOid: second.head.sha } }];
+  const h = appHarness({ queue, pulls: { 2: second }, event: 'pull_request_target',
+    payload: { action: 'edited', pull_request: second } }, () => []);
+  assert.equal(await runHoldCheck(h), false);
+  assert.equal(h.statuses.findLast((status) => status.sha === head).state, 'failure');
+  assert.ok(!h.statuses.some((status) => status.sha === middle));
+});

@@ -21,6 +21,8 @@ export function minimalPayload(payload) {
       repo: { full_name: payload.pull_request.head?.repo?.full_name } },
     base: { ref: payload.pull_request.base?.ref } };
   if (payload.changes?.base) result.changes = { base: true };
+  if (payload.merge_group) result.merge_group = Object.fromEntries(
+    ['head_sha', 'base_sha', 'base_ref', 'head_ref'].map((key) => [key, payload.merge_group[key]]));
   // Retain only invalidation identities, not check-suite/status/push bodies.
   if (payload.check_suite) result.check_suite = { head_sha: payload.check_suite.head_sha };
   if (typeof payload.sha === 'string') result.sha = payload.sha;
