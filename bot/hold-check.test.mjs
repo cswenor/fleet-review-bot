@@ -201,6 +201,8 @@ function appHarness(options = {}, reviews = () => [appReview()]) {
   h.reviewApp = 'example-review';
   h.github.rest.users = { getByUsername: async () => ({ data: appUser }) };
   h.github.rest.pulls.listReviews = async (args) => ({ data: reviews(args) });
+  h.github.rest.pulls.list = async () => ({ data: [1, 2].map((number) =>
+    typeof options.pulls?.[number] === 'object' ? options.pulls[number] : pull(number)) });
   return h;
 }
 

@@ -164,9 +164,14 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
   const livePull = async (number, head, base) => {
     const { data } = await github.rest.pulls.get({ ...repo, pull_number: number });
     await requireApproval(number, data?.head?.sha);
+    if (reviewer && group) {
+      const shared = await sharedHeadPulls(head);
+      requireData(shared.pulls.some((candidate) => candidate.number === number)
+        && shared.pulls.every((candidate) => candidate.pass), 'A PR sharing a queue member head lacks authority');
+    }
     return inspectPull(data, { number, head, base });
   };
-  const sharedHeadPulls = async () => {
+  const sharedHeadPulls = async (sharedHead = target) => {
     const results = [];
     const numbers = new Set();
     const bases = new Set();
@@ -178,10 +183,10 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
           && SHA.test(candidate.head?.sha) && typeof candidate.base?.ref === 'string', 'Unknown open PR membership');
         numbers.add(candidate.number);
         bases.add(candidate.base.ref);
-        if (candidate.head.sha === target) {
-          await requireApproval(candidate.number, target);
+        if (candidate.head.sha === sharedHead) {
+          await requireApproval(candidate.number, sharedHead);
           results.push(inspectPull(candidate,
-            { number: candidate.number, head: target, base: candidate.base.ref }));
+            { number: candidate.number, head: sharedHead, base: candidate.base.ref }));
         }
       }
       if (data.length < 100) return { pulls: results.sort((a, b) => a.number - b.number), bases: [...bases].sort() };
@@ -206,6 +211,7 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
       requireData(typeof group.base_ref === 'string' && group.base_ref.startsWith('refs/heads/')
         && typeof group.head_ref === 'string' && group.head_ref.startsWith('refs/heads/gh-readonly-queue/'), 'Unknown merge group refs');
       base = group.base_ref.slice('refs/heads/'.length);
+      if (reviewer) requireData(base === 'main', 'Configured App approval supports main only');
       const checkRef = async () => {
         const { data } = await github.rest.git.getRef({ ...repo, ref: group.head_ref.slice('refs/'.length) });
         requireData(data?.object?.sha === target, 'Stale group head');
@@ -224,6 +230,7 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
       requireData(context.eventName === 'pull_request_target'
         && Number.isSafeInteger(pull?.number) && typeof pull.base?.ref === 'string', 'Unsupported or incomplete PR event');
       base = pull.base.ref;
+      if (reviewer) requireData(base === 'main', 'Configured App approval supports main only');
       const result = await livePull(pull.number, target, base);
       requireData(result.pass, 'PR is held, draft, or has an unticked Gate');
       requireData((await livePull(pull.number, target, base)).pass, 'PR changed during evaluation');

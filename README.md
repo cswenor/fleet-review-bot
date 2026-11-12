@@ -49,6 +49,8 @@ Callers must pass literal `source_repository: cswenor/fleet-review-bot` and `sou
 
 ### App-owned approval gate (native bot mode)
 
+The App supports `main` only; other PR/queue base branches always fail its
+approval gate rather than gaining authority without periodic reconciliation.
 With `MERGE_LANE_ENABLED=false`, the independently deployed Review App publishes
 `app-approval` check runs using its own installation identity. Require both
 `app-approval` and `codex-review` bound to that Review App integration ID, plus

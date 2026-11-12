@@ -172,3 +172,33 @@ test('signed webhook reaches durable scheduler and revokes live App check; unsig
   assert.equal(result(f).conclusion, 'failure');
   assert.equal(store.get('SELECT state FROM deliveries WHERE id=?', 'dismiss-fixture').state, 'processed');
 });
+
+test('periodic group evaluation cannot restore authority revoked by an unapproved shared-head PR', async () => {
+  const pulls = [pr(1), pr(2)];
+  const queue = [{ position: 1, baseCommit: { oid: sha('c') }, headCommit: { oid: sha('d') },
+    pullRequest: { number: 1, headRefOid: sha('a') } }];
+  const refs = [{ ref: 'refs/heads/gh-readonly-queue/main/pr-1-fixture', object: { sha: sha('d') } }];
+  const f = fixture({ pulls, queue, refs });
+  await f.gate.reconcile();
+  assert.equal(result(f, sha('d')).conclusion, 'success');
+  f.reviews.set(2, []);
+  f.advance();
+  await f.gate.reconcile();
+  assert.equal(result(f, sha('d')).conclusion, 'failure');
+  f.reviews.set(2, approved());
+  f.advance();
+  await f.gate.reconcile();
+  assert.equal(result(f, sha('d')).conclusion, 'success');
+});
+
+test('App approval cannot authorize unsupported base branches or their synthetic heads', async () => {
+  const member = pr(1);
+  member.base.ref = 'release';
+  const f = fixture({ pulls: [member] });
+  await f.delivery('pull_request_review', 'submitted');
+  assert.equal(result(f).conclusion, 'failure');
+  await f.gate.delivery('merge_group', { action: 'checks_requested', repository: { full_name: repository },
+    merge_group: { head_sha: sha('d'), base_sha: sha('c'), base_ref: 'refs/heads/release',
+      head_ref: 'refs/heads/gh-readonly-queue/release/pr-1-fixture' } });
+  assert.equal(result(f, sha('d')).conclusion, 'failure');
+});
