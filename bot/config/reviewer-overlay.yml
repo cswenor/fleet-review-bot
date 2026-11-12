@@ -1,0 +1,22 @@
+advisor: {enabled: false}
+tools: {approvalMode: always-ask}
+# Root .mcp.json and other tool-native project sources are untrusted.
+# omp://mcp-runtime-lifecycle.md: enableProjectConfig false filters project entries.
+mcp: {enableProjectConfig: false}
+# Preserved review/head policy blobs are data, not deeper-directory context pointers.
+includeWorkspaceTree: false
+# omp://context-files.md: disable every project context basename independently
+# of no-rules/no-skills/no-extensions and regardless of discovery provider.
+disabledExtensions:
+  - context-file:project:AGENTS.md
+  - context-file:project:CLAUDE.md
+  - context-file:project:GEMINI.md
+  - context-file:project:copilot-instructions.md
+retry:
+  enabled: true
+  modelFallback: false
+  usageAwareFallback: false
+codexResets:
+  autoRedeem: 'no'
+claudeResets:
+  autoRedeem: 'no'

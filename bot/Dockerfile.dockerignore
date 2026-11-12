@@ -1,0 +1,14 @@
+**
+!bot/
+!bot/*.mjs
+!bot/config/
+!bot/config/*.yml
+!bot/bin/
+!bot/bin/*.sh
+!bot/Dockerfile
+!bot/Dockerfile.dockerignore
+!scripts/
+!scripts/builder/
+!scripts/builder/builder.mjs
+!scripts/repository-identity.mjs
+!scripts/ci-tested-tree.mjs

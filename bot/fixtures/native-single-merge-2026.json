@@ -1,0 +1,193 @@
+{
+  "capture": {
+    "api_version": "2026-03-10",
+    "rest_endpoint": "/repos/example-org/example-project/pulls/101",
+    "rest_top_level_fields": [
+      "_links",
+      "active_lock_reason",
+      "additions",
+      "assignees",
+      "author_association",
+      "auto_merge",
+      "base",
+      "body",
+      "changed_files",
+      "closed_at",
+      "comments",
+      "comments_url",
+      "commits",
+      "commits_url",
+      "created_at",
+      "deletions",
+      "diff_url",
+      "draft",
+      "head",
+      "html_url",
+      "id",
+      "issue_url",
+      "labels",
+      "locked",
+      "maintainer_can_modify",
+      "mergeable",
+      "mergeable_state",
+      "merged",
+      "merged_at",
+      "merged_by",
+      "milestone",
+      "node_id",
+      "number",
+      "patch_url",
+      "rebaseable",
+      "requested_reviewers",
+      "requested_teams",
+      "review_comment_url",
+      "review_comments",
+      "review_comments_url",
+      "state",
+      "statuses_url",
+      "title",
+      "updated_at",
+      "url",
+      "user"
+    ],
+    "projection": "Only native identity/state fields are retained; no invented merge_commit_sha. Journal preserves captured state relationships with synthetic identities and hashes."
+  },
+  "journal": {
+    "base_sha": "c67097fc248470bd6ee34f02e05651a466e97b7a",
+    "head_sha": "f6810fc2063143f8a2268e56fea9b9ef00b3b83c",
+    "tree_sha": "112bacd38c1d08d09ddc2c2c3e9d63f70eee7f37",
+    "target_pr": 101,
+    "target_node_id": "PR_fixture_101",
+    "carrier_branch": null,
+    "manifest_digest": "ec980ce67f1d3c014cc669df951afd30fcb012c4636201deda4087fafbd44573",
+    "sealed": true,
+    "ci": {
+      "run_id": 2001,
+      "attempt": 1,
+      "tree_sha": "112bacd38c1d08d09ddc2c2c3e9d63f70eee7f37",
+      "artifact_id": 2002,
+      "image_digest": "sha256:a7f0e9d61e14b5d10faa7905af68ca7c5846bdcaaf90ae1e423bf3883455f32b"
+    },
+    "mutation": {
+      "id": "merge-8789d2e58933a4bf1019f822",
+      "kind": "merge",
+      "head_sha": "f6810fc2063143f8a2268e56fea9b9ef00b3b83c",
+      "main_sha": "c67097fc248470bd6ee34f02e05651a466e97b7a",
+      "marker": null,
+      "target_pr": 101,
+      "tree_sha": "112bacd38c1d08d09ddc2c2c3e9d63f70eee7f37",
+      "manifest_digest": "ec980ce67f1d3c014cc669df951afd30fcb012c4636201deda4087fafbd44573"
+    },
+    "operations": [
+      {
+        "intent": {
+          "id": "comment-4ce4a0647b40cd0157e83aa6",
+          "kind": "comment",
+          "head_sha": "f6810fc2063143f8a2268e56fea9b9ef00b3b83c",
+          "main_sha": "c67097fc248470bd6ee34f02e05651a466e97b7a",
+          "marker": "<!-- fleet-review-bot-batch-status:15ea48f579f3cc5a6fd27469:2:101 -->",
+          "method": "PATCH",
+          "comment_id": 2003,
+          "body_sha256": "78e864c3b3fa92e41a403d98cb6bdb8cb79f9913424a5f8516b26c6e8d759dab",
+          "comment_pr": 101
+        },
+        "receipt": {
+          "outcome": "published",
+          "comment_id": 2003,
+          "body_sha256": "78e864c3b3fa92e41a403d98cb6bdb8cb79f9913424a5f8516b26c6e8d759dab"
+        },
+        "finished_at": 1792334636871
+      }
+    ],
+    "member_results": {},
+    "fallback_done": [],
+    "fallback_of": null,
+    "needs_inspection": false,
+    "reason": "GitHub request failed: GET /repos/example-org/example-project/commits/undefined HTTP 422",
+    "merged_sha": null,
+    "id": "15ea48f579f3cc5a6fd27469",
+    "generation": 2,
+    "kind": "single",
+    "state": "merging",
+    "selected_at": 1792334632075,
+    "updated_at": 1792334832274,
+    "members": [
+      {
+        "pr": 101,
+        "head_sha": "f6810fc2063143f8a2268e56fea9b9ef00b3b83c",
+        "review_id": 627,
+        "publication_id": 627,
+        "github_review_id": 2004,
+        "pull_request_id": "PR_fixture_101",
+        "ci_run_id": 2001,
+        "ci_attempt": 1,
+        "priority": null,
+        "created_at": "2026-10-18T14:33:14Z"
+      }
+    ]
+  },
+  "rest_pull": {
+    "number": 101,
+    "node_id": "PR_fixture_101",
+    "state": "closed",
+    "merged": true,
+    "merged_at": "2026-10-18T14:47:04Z",
+    "mergeable": null,
+    "draft": false,
+    "created_at": "2026-10-18T14:33:14Z",
+    "head": {
+      "sha": "f6810fc2063143f8a2268e56fea9b9ef00b3b83c",
+      "ref": "example-owner/task-1-feature",
+      "repo": {
+        "full_name": "example-org/example-project"
+      }
+    },
+    "base": {
+      "sha": "c67097fc248470bd6ee34f02e05651a466e97b7a",
+      "ref": "main",
+      "repo": {
+        "full_name": "example-org/example-project"
+      }
+    },
+    "user": {
+      "id": 1008,
+      "login": "builder[bot]",
+      "type": "Bot"
+    },
+    "merged_by": {
+      "id": 1009,
+      "login": "example-review[bot]",
+      "type": "Bot"
+    },
+    "labels": []
+  },
+  "graphql": {
+    "repository": {
+      "pullRequest": {
+        "id": "PR_fixture_101",
+        "merged": true,
+        "headRefOid": "f6810fc2063143f8a2268e56fea9b9ef00b3b83c",
+        "baseRefName": "main",
+        "mergeCommit": {
+          "oid": "7a0405be3f5296d669d2913c68bb2d768b303d72"
+        }
+      }
+    }
+  },
+  "native_commit": {
+    "sha": "7a0405be3f5296d669d2913c68bb2d768b303d72",
+    "commit": {
+      "tree": {
+        "sha": "112bacd38c1d08d09ddc2c2c3e9d63f70eee7f37"
+      }
+    },
+    "parents": [
+      {
+        "sha": "c67097fc248470bd6ee34f02e05651a466e97b7a"
+      },
+      {
+        "sha": "f6810fc2063143f8a2268e56fea9b9ef00b3b83c"
+      }
+    ]
+  }
+}

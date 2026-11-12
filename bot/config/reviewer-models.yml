@@ -1,0 +1,9 @@
+providers:
+  openai-codex:
+    transport: pi-native
+    baseUrl: http://gateway:4000
+    apiKey: OMP_GATEWAY_TOKEN
+  anthropic:
+    transport: pi-native
+    baseUrl: http://gateway:4000
+    apiKey: OMP_GATEWAY_TOKEN

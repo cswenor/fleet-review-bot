@@ -1,0 +1,108 @@
+name: Merge hold gate
+
+on:
+  workflow_call:
+    inputs:
+      source_repository:
+        description: 'Reviewed source repository containing bot/hold-check.mjs and bot/merge-gate.mjs. Set a literal in the protected caller workflow.'
+        required: true
+        type: string
+      source_sha:
+        description: 'Reviewed full commit SHA, identical to the SHA pin in jobs.<job>.uses. Never derive from PR/event input.'
+        required: true
+        type: string
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, labeled, unlabeled, ready_for_review, converted_to_draft]
+  merge_group:
+    types: [checks_requested]
+
+# The only write permission publishes commit statuses, never PRs or repository content.
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+# Do not use workflow concurrency: GitHub replaces pending runs even when
+# cancel-in-progress is false, which can permanently discard another PR's hold.
+
+jobs:
+  evaluate:
+    # The required authority is the explicit merge-gate commit status below, not
+    # this Actions job (pull_request_target otherwise checks the base SHA).
+    name: Evaluate live merge holds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve trusted source revision
+        id: source
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          SOURCE_REPOSITORY: ${{ inputs.source_repository || github.repository }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        with:
+          script: |
+            const source = process.env.SOURCE_REPOSITORY;
+            if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(source)) throw new Error('Invalid trusted source repository');
+            const [owner, repo] = source.split('/');
+            let ref = process.env.SOURCE_SHA;
+            if (ref) {
+              if (!/^[0-9a-f]{40}$/.test(ref)) throw new Error('Reusable source must be a reviewed full commit SHA');
+            } else {
+              // Native triggers execute only the current trusted default branch,
+              // resolved once to an immutable SHA. Never use github.sha: on a
+              // merge_group event that is the untrusted synthetic merge commit.
+              if (source !== context.repo.owner + '/' + context.repo.repo) throw new Error('External source requires a reviewed SHA');
+              const { data } = await github.rest.repos.get({ owner, repo });
+              const commit = await github.rest.repos.getCommit({ owner, repo, ref: data.default_branch });
+              ref = commit.data.sha;
+              if (!/^[0-9a-f]{40}$/.test(ref)) throw new Error('Unknown trusted default-branch SHA');
+            }
+            core.setOutput('repository', source);
+            core.setOutput('ref', ref);
+      - name: Check out trusted gate code only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ steps.source.outputs.repository }}
+          ref: ${{ steps.source.outputs.ref }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /bot/hold-check.mjs
+            /bot/merge-gate.mjs
+      - name: Publish merge-gate on exact event head
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url');
+            const { join } = require('node:path');
+            const { runHoldCheck } = await import(pathToFileURL(join(process.env.GITHUB_WORKSPACE, 'bot/hold-check.mjs')).href);
+            await runHoldCheck({ github, context, core });
+
+# Configure branch protection/rulesets to require the merge-gate commit status
+# (GitHub Actions app) with no bypass. Reusable callers must grant statuses:write
+# and invoke this on the same pull_request_target and merge_group event types.
+# Reusable consumer invocation (replace OWNER/REPO and REVIEWED_40_HEX_SHA with
+# the public source repository and the same reviewed full commit SHA in both):
+# on:
+#   pull_request_target:
+#     types: [opened, reopened, synchronize, edited, labeled, unlabeled, ready_for_review, converted_to_draft]
+#   merge_group:
+#     types: [checks_requested]
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   statuses: write
+# jobs:
+#   holds:
+#     uses: OWNER/REPO/.github/workflows/merge-gate.yml@REVIEWED_40_HEX_SHA
+#     with:
+#       source_repository: OWNER/REPO
+#       source_sha: REVIEWED_40_HEX_SHA
+# These must be protected workflow literals, not PR-controlled expressions.
+# github.workflow_ref describes the caller in reusable contexts, so it is not
+# used to guess the called source. Caller repository code is never checked out
+# by a correctly configured external invocation.
+# Holds invalidate observed active queue heads, but webhook latency/API outages
+# and GitHub's non-atomic merge decision mean this is not a race-free guarantee.
+# Group evaluation inspects the contiguous queue prefix through the matching
+# synthetic head, not an assumed baseCommit chain. This conservative superset
+# can block an earlier queued PR absent from the exact synthetic group.

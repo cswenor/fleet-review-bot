@@ -1,0 +1,9 @@
+{
+  "model": "jev-1.14.0",
+  "calibratedModel": "jev-1.14.0",
+  "block": 0.5,
+  "approveBlockingMax": 0,
+  "approveSevereMax": 0,
+  "priorResolvedMin": 1,
+  "dataset": "UNCALIBRATED starting example; calibrate per instance before approve mode"
+}

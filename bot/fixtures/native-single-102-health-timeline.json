@@ -1,0 +1,356 @@
+{
+  "source": "Actual GET /health transitions observed during native singleton PR102 on deployed7fde. This is a projected HTTP observation, not a complete authority journal or invented native API response.",
+  "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+  "base_sha": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+  "final_head": "bfb9e2ecc148e89f98203674aa34353ec0667afe",
+  "native": {
+    "id": "PR_kwDOTGJfhs8AAAABJK4FXQ",
+    "merged": true,
+    "headRefOid": "bfb9e2ecc148e89f98203674aa34353ec0667afe",
+    "baseRefName": "main",
+    "mergeCommit": {
+      "oid": "63128245a35f7bd4291b32f532e2b6614e13c759"
+    }
+  },
+  "observations": [
+    {
+      "at": "2026-10-18T15:19:34.580Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": null,
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T15:22:39.462Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": null,
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T16:18:18.282Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": null,
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T16:39:00.987Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 1,
+        "kind": "single",
+        "state": "selected",
+        "target_pr": 102,
+        "selected_at": 1792341537468,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "f5575b4ace3651b390eb92322e14ad428d786e66"
+          }
+        ],
+        "mutation": null
+      },
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T16:39:05.605Z",
+      "event": "health_transition",
+      "status": 503,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": false,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 1,
+        "kind": "single",
+        "state": "selected",
+        "target_pr": 102,
+        "selected_at": 1792341537468,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "f5575b4ace3651b390eb92322e14ad428d786e66"
+          }
+        ],
+        "mutation": {
+          "id": "update-7c1f93f226d6fdd829f66030",
+          "kind": "update"
+        }
+      },
+      "failures": [
+        {
+          "id": "1b4a464134275d2aecf87e9e",
+          "generation": 1,
+          "state": "selected",
+          "mutation": "update",
+          "reason": null,
+          "target_pr": 102
+        }
+      ]
+    },
+    {
+      "at": "2026-10-18T16:42:26.934Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 2,
+        "kind": "single",
+        "state": "selected",
+        "target_pr": 102,
+        "selected_at": 1792341746083,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "bfb9e2ecc148e89f98203674aa34353ec0667afe"
+          }
+        ],
+        "mutation": null
+      },
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T16:42:30.500Z",
+      "event": "health_transition",
+      "status": 503,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": false,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 2,
+        "kind": "single",
+        "state": "selected",
+        "target_pr": 102,
+        "selected_at": 1792341746083,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "bfb9e2ecc148e89f98203674aa34353ec0667afe"
+          }
+        ],
+        "mutation": {
+          "id": "comment-9af0895a002dcec2ff15476c",
+          "kind": "comment"
+        }
+      },
+      "failures": [
+        {
+          "id": "1b4a464134275d2aecf87e9e",
+          "generation": 2,
+          "state": "selected",
+          "mutation": "comment",
+          "reason": null,
+          "target_pr": 102
+        }
+      ]
+    },
+    {
+      "at": "2026-10-18T16:42:31.503Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 2,
+        "kind": "single",
+        "state": "selected",
+        "target_pr": 102,
+        "selected_at": 1792341746083,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "bfb9e2ecc148e89f98203674aa34353ec0667afe"
+          }
+        ],
+        "mutation": null
+      },
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T16:44:20.038Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 2,
+        "kind": "single",
+        "state": "testing",
+        "target_pr": 102,
+        "selected_at": 1792341746083,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "bfb9e2ecc148e89f98203674aa34353ec0667afe"
+          }
+        ],
+        "mutation": null
+      },
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T16:44:21.043Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 2,
+        "kind": "single",
+        "state": "merging",
+        "target_pr": 102,
+        "selected_at": 1792341746083,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "bfb9e2ecc148e89f98203674aa34353ec0667afe"
+          }
+        ],
+        "mutation": null
+      },
+      "failures": []
+    },
+    {
+      "at": "2026-10-18T16:44:54.277Z",
+      "event": "health_transition",
+      "status": 503,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": false,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 2,
+        "kind": "single",
+        "state": "merging",
+        "target_pr": 102,
+        "selected_at": 1792341746083,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "bfb9e2ecc148e89f98203674aa34353ec0667afe"
+          }
+        ],
+        "mutation": {
+          "id": "merge-52167fb2ab1f90aaee7b2f75",
+          "kind": "merge"
+        }
+      },
+      "failures": [
+        {
+          "id": "1b4a464134275d2aecf87e9e",
+          "generation": 2,
+          "state": "merging",
+          "mutation": "merge",
+          "reason": null,
+          "target_pr": 102
+        }
+      ]
+    },
+    {
+      "at": "2026-10-18T16:45:00.304Z",
+      "event": "health_transition",
+      "status": 503,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": false,
+      "mode": "approve",
+      "lane": {
+        "id": "1b4a464134275d2aecf87e9e",
+        "generation": 2,
+        "kind": "single",
+        "state": "publishing",
+        "target_pr": 102,
+        "selected_at": 1792341746083,
+        "members": [
+          {
+            "pr": 102,
+            "head_sha": "bfb9e2ecc148e89f98203674aa34353ec0667afe"
+          }
+        ],
+        "mutation": null
+      },
+      "failures": [
+        {
+          "id": "1b4a464134275d2aecf87e9e",
+          "generation": 2,
+          "state": "publishing",
+          "mutation": null,
+          "reason": null,
+          "target_pr": 102
+        }
+      ]
+    },
+    {
+      "at": "2026-10-18T16:45:15.799Z",
+      "event": "health_transition",
+      "status": 503,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": false,
+      "mode": "approve",
+      "lane": null,
+      "failures": [
+        {
+          "id": "1b4a464134275d2aecf87e9e",
+          "generation": 2,
+          "state": "publishing",
+          "mutation": null,
+          "reason": null,
+          "target_pr": 102
+        }
+      ]
+    },
+    {
+      "at": "2026-10-18T16:45:19.124Z",
+      "event": "health_transition",
+      "status": 503,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": false,
+      "mode": "approve",
+      "lane": null,
+      "failures": [
+        {
+          "id": "1b4a464134275d2aecf87e9e",
+          "generation": 2,
+          "state": "publishing",
+          "mutation": "comment",
+          "reason": null,
+          "target_pr": 102
+        }
+      ]
+    },
+    {
+      "at": "2026-10-18T16:45:20.681Z",
+      "event": "health_transition",
+      "status": 200,
+      "revision": "7fde5da667379b799852fd2f1e74c30ca4b30b67",
+      "ok": true,
+      "mode": "approve",
+      "lane": null,
+      "failures": []
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+# Fleet Review Bot
+
+A single-repository GitHub Review App with exact-head reviews and isolated read-only model execution. Each installation owns its App credentials, state database, workspaces, runner, broker and gateway. This repository contains the generic implementation, not a shared multi-tenant service.
+
+## Safety defaults
+
+`MERGE_LANE_ENABLED=false` and `MERGE_BATCH_ENABLED=false` by default. Review-only means the bot can publish checks and exact-head APPROVE reviews; it does not merge, enqueue, enable auto-merge, or update branches. Use GitHub native auto-merge or merge queue as the supported merge path. An authorized release actor arms GitHub only after independent review, required final-head CI, exact-head Review App approval and release authorization. A new push invalidates that authorization.
+
+The legacy direct merge lane remains available only with explicit `MERGE_LANE_ENABLED=true`; its Builder App, CI protocol and batch settings require separate project-specific approval. Do not enable it for native merge mode.
+
+A held PR can still be reviewed and approved. Therefore installations MUST require the `merge-gate` status in their actual live branch ruleset, alongside CI and App-bound review authority. Committed workflow files alone do not enforce protection. Configure stale-review dismissal, independent last-push approval and no builder/admin bypass. Keep an owner-controlled repair path outside the bot's own gate.
+
+## Quickstart for installation tooling
+
+Fleet's planned `fleet review-bot` commands will drive this contract; those commands are not implemented here.
+
+1. Pin an independently reviewed source commit and a tested image **digest**. Never auto-follow a branch or mutable image tag. Create a separate selected-repository Review App and separate Builder App identity for each instance; never reuse another project's keys or SQLite database.
+2. Add trusted-main files to the consuming repository: `.github/review-policy.md`, `.omp/config.yml` with its `modelRoles.review` binding, `.omp/unadvised-review.yml`, and `bot/verdict-thresholds.json`. Policy and thresholds are read from the consuming repository's trusted `main`, not from a PR or the image. Missing or malformed policy refuses approval.
+3. Calibrate the judge model and thresholds on the consuming project's own data. The shipped threshold file is an **uncalibrated starting example**, not approval to adopt another project's calibration. Retain local calibration evidence privately. The judge's returned model must match `calibratedModel` exactly.
+4. Supply the instance environment below through a private secret manager or mode-0600 environment file. Never commit real values. Configure runner model routes and overlays through an instance-specific read-only configuration mount. Saved-reset spending is disabled in the stock overlay; do not enable automatic spending.
+5. Deploy the pinned image as separate control-plane, broker, gateway and no-egress read-only runner processes. The image ENTRYPOINT supplies `tini`, not a deployment topology. Use `node /opt/pr-review-bot/bot/server.mjs` for the control plane and `node /opt/pr-review-bot/bot/runner.mjs` for the runner. Isolate `/state`, `/work` and `/sessions` per instance. Keys and judge credentials belong only in the trusted control plane/gateway, never the reviewed checkout or model runner. Hosting, secrets and network adapters are deployment-owner choices; no host or secret-store project is embedded.
+6. Install the reusable merge-gate workflow pinned to the same reviewed commit; see its contract below. Require its status in the live ruleset. All other required CI must run on both pull requests and `merge_group` synthetic heads. Enable native queue only when repository capability and synthetic-head checks are proved.
+7. Prove a scratch PR: hold blocks before and after queueing, unticked Gate boxes block, a failing review/CI blocks, push dismisses stale approval, fresh exact-head approval permits authorized native auto-merge, actual merge is observed, and rollback restores the pinned compatible image/state. A successful build is not deployment or wake-delivery evidence.
+
+### Per-instance configuration
+
+| Surface | Contract |
+|---|---|
+| Identity | `GITHUB_REPOSITORY=example-org/example-project`; numeric `GITHUB_APP_ID`, `REVIEW_BOT_USER_ID`; `REVIEW_BOT_LOGIN=example-review[bot]` |
+| Builder identity | `BUILDER_BOT_LOGIN=example-builder[bot]`, numeric `BUILDER_BOT_USER_ID`; identity metadata is currently required even in review-only, but Builder credentials are not |
+| Human authority | `REVIEW_APPROVERS=example-owner:1004`; explicit nonempty comma-separated login:id pairs |
+| Mode | `REVIEW_BOT_MODE=off|advisory|approve` is required; use advisory until calibration and live protection are proved |
+| Credentials | `GITHUB_APP_PRIVATE_KEY_B64`, `GITHUB_WEBHOOK_SECRET`, `OMP_GATEWAY_TOKEN`, `TYPESAFE_API_KEY`; names only, never values in source/logs/argv |
+| Runtime | `RUNNER_URL` (default `http://runner:8081`), `GATEWAY_URL` (`http://gateway:4000`), `STATE_ROOT=/state`, `WORK_ROOT=/work`, `SESSIONS_ROOT=/sessions`, `PORT=8080` |
+| Reviewer route | `REVIEW_MODEL` defaults to `openai-codex/gpt-6.1-sol`; also supports `anthropic/claude-opus-5-5`. `REVIEW_THINKING=low|medium|high` defaults to medium. The runner and transcript classifier reject unsupported or mismatched routes |
+| Runner policy | Mount per-instance `reviewer-models.yml` and `reviewer-overlay.yml` read-only at `/opt/pr-review-bot/config`; stock policy disables fallback, advisors and saved-reset spending |
+| Builder CLI | `scripts/builder/builder.mjs gh ...` uses `REVIEW_BOT_BUILDER_REAL_GH` for the installed real gh executable; mark builder checkouts with `git config review-bot.builder true` to require Builder App credentials and refuse `gh auth`. Unmarked checkouts retain ordinary gh identity |
+| Limits | `REVIEW_CONCURRENCY=2`, `RETENTION_DAYS=180`, `RECONCILE_INTERVAL_MS=60000`; deployment owner selects capacity and budgets |
+| Native mode | Explicitly set `MERGE_LANE_ENABLED=false`, `MERGE_BATCH_ENABLED=false`; configure GitHub rulesets, not a second custom merger |
+| Legacy opt-in | Builder client/key environment, `MERGE_BATCH_MAX_SIZE` (1–5), `MERGE_BATCH_COLLECT_SECONDS` (0–900); not needed by supported native mode |
+
+The current protocol targets the `main` base branch. Each instance is single-repository; webhook repository identity and installation grants must match it. Approval mode degrades to advisory if gateway/judge readiness is unavailable; inspect `/health` rather than assuming requested mode became effective. `/health` includes image revision and merge-lane state. Verify the deployed image digest separately.
+
+## Merge hold gate
+
+The reusable workflow is `.github/workflows/merge-gate.yml`. Pin `uses: cswenor/fleet-review-bot/.github/workflows/merge-gate.yml@<reviewed-full-commit>` in a trusted consuming workflow and grant only its documented permissions. Never execute PR-controlled scripts with write credentials. A `hold` label (case-insensitive), draft state, or any unticked `Gate:` checkbox blocks release. Queue evaluation must inspect every group member and refuse unknown or incomplete membership; checking only the last queue PR is unsafe.
+
+Callers must pass literal `source_repository: cswenor/fleet-review-bot` and `source_sha: <the-same-reviewed-full-commit>`, trigger on `pull_request_target` hold/body/draft changes and `merge_group: checks_requested`, and grant `contents: read`, `pull-requests: read`, `statuses: write`. See the workflow's complete invocation example. It publishes the explicit `merge-gate` commit status on the live PR or synthetic head, not a misleading base-SHA Actions check. Protect the caller workflow and its source pin as release authority. Queue membership is conservatively the complete contiguous prefix through the matching synthetic head; this can block an earlier entry outside the minimal group rather than risk omitting a held member.
+
+Do not add workflow concurrency to the gate or its caller: GitHub replaces pending runs even with `cancel-in-progress: false`, which can discard a held PR's status revocation. Every trigger must run its live-state evaluation.
+
+Because commit statuses are SHA-scoped, the gate checks every open PR sharing the event head, across paginated live membership, before granting success. A held/draft/incomplete PR on another branch with the same commit conservatively blocks that shared authority.
+PR events also refuse to authorize a head currently used by an observed synthetic queue entry: only a merge-group evaluation may grant that authority. Queue lookups cover every base represented in open PRs; unavailable membership fails closed.
+
+GitHub webhooks/checks are asynchronous. For an emergency hold after auto-merge is armed or a queue group starts, also disable auto-merge/dequeue the PR and verify removal; a delayed workflow cannot revoke a merge GitHub already completed. Do not describe label delivery as a synchronous atomic merge fence.
+
+## Development and maintenance
+
+Requires Node 24, Git, Python 3 and Docker. The fixture identity is synthetic and intentionally independent of the triggering repository:
+
+```sh
+env -u GITHUB_REPOSITORY node --env-file=bot/test.env --test --test-concurrency=4 bot/*.test.mjs
+docker build --platform linux/amd64 --build-arg GIT_SHA=$(git rev-parse HEAD) -f bot/Dockerfile .
+```
+
+CI runs the full existing suite and real Linux image build, without pushing or deploying. The image pins the public OMP release and checksum. Consumer OMP configuration must be compatible with that exact version.
+
+Changes require PRs, green final-head CI and an independent read-only unadvised review. Release with semver tags and CHANGELOG entries; build an immutable source-SHA image and retain its registry digest. Consumers opt into updates explicitly. Before schema-changing rollout, back up SQLite with writers stopped and document backward compatibility; do not assume an older image can read new state. Keep rollback image/config/state receipts per instance.
+
+## Provenance
+
+Derived from an existing single-repository review bot and its maintained fork, including exact-head approval, budget/authority fencing, review-only isolation and durable recovery fixes. This public repository starts with one sanitized root commit; private source history, deployment identifiers and captured project content are intentionally not distributed.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
