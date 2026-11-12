@@ -91,6 +91,37 @@ function snapshot(entries) {
 }
 
 export async function runHoldCheck({ github, context, core, reviewApp = '' }) {
+  if (context.eventName === 'workflow_run') {
+    // The signal has no write authority. Ignore its artifacts, conclusion,
+    // branch and claimed PR list: default-branch code rechecks live PRs.
+    const pulls = [];
+    const seen = new Set();
+    try {
+      requireData(context.payload?.action === 'completed', 'Unsupported review signal');
+      let complete = false;
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await github.rest.pulls.list({ ...context.repo, state: 'open', per_page: 100, page });
+        requireData(Array.isArray(data) && data.length <= 100, 'Unknown review-signal PR page');
+        for (const pr of data) {
+          requireData(Number.isSafeInteger(pr?.number) && !seen.has(pr.number), 'Unknown review-signal membership');
+          seen.add(pr.number);
+          pulls.push(pr);
+        }
+        if (data.length < 100) { complete = true; break; }
+      }
+      requireData(complete, 'Review-signal PR pagination limit exceeded');
+      let pass = true;
+      for (const pr of pulls) {
+        const result = await runHoldCheck({ github, core, reviewApp,
+          context: { ...context, eventName: 'pull_request_target', payload: { action: 'edited', pull_request: pr } } });
+        pass = result && pass;
+      }
+      return pass;
+    } catch (error) {
+      core.setFailed(error.message);
+      return false;
+    }
+  }
   const repo = context.repo;
   const event = context.payload;
   const group = event.merge_group;
@@ -189,8 +220,7 @@ export async function runHoldCheck({ github, context, core, reviewApp = '' }) {
       for (const result of results) requireData((await livePull(result.number, result.sha, base)).pass, 'Merge group member changed');
       await checkRef();
     } else {
-      requireData((context.eventName === 'pull_request_target'
-        || (context.eventName === 'pull_request_review' && ['submitted', 'dismissed', 'edited'].includes(event.action)))
+      requireData(context.eventName === 'pull_request_target'
         && Number.isSafeInteger(pull?.number) && typeof pull.base?.ref === 'string', 'Unsupported or incomplete PR event');
       base = pull.base.ref;
       const result = await livePull(pull.number, target, base);

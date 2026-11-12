@@ -223,7 +223,7 @@ test('configured App requires exact-head approval, not a stale, dismissed, human
 });
 
 test('latest decisive App review revokes an earlier approval; comment-only reviews do not', async () => {
-  const options = { event: 'pull_request_review', payload: { action: 'dismissed', pull_request: pull(1) } };
+  const options = { event: 'workflow_run', payload: { action: 'completed' } };
   for (const state of ['DISMISSED', 'CHANGES_REQUESTED']) {
     const h = appHarness(options, () => [appReview(),
       appReview({ id: 2, state, submitted_at: '2026-11-12T13:00:00Z' })]);
@@ -267,8 +267,24 @@ test('App identity and unavailable or unstable review pagination fail closed', a
 
 test('approval revoked between authority reads prevents success', async () => {
   let reads = 0;
-  const h = appHarness({ event: 'pull_request_review', payload: { action: 'submitted', pull_request: pull(1) } },
+  const h = appHarness({ event: 'workflow_run', payload: { action: 'completed' } },
     () => [appReview({ state: ++reads > 1 ? 'DISMISSED' : 'APPROVED' })]);
+  assert.equal(await runHoldCheck(h), false);
+  assert.ok(!h.statuses.some((s) => s.state === 'success'));
+});
+
+test('untrusted signal metadata cannot select authority or hide live PRs', async () => {
+  const h = appHarness({ event: 'workflow_run', payload: { action: 'completed',
+    workflow_run: { conclusion: 'success', pull_requests: [], review_app: '', head_sha: base } } },
+  ({ pull_number }) => pull_number === 1 ? [appReview()] : []);
+  assert.equal(await runHoldCheck(h), false);
+  assert.ok(h.errors.some((error) => error.includes('exact-head approval')));
+  assert.ok(h.statuses.some((s) => s.sha === prHead && s.state === 'failure'));
+});
+
+test('PR-controlled review trigger has no direct merge-gate authority', async () => {
+  const h = appHarness({ event: 'pull_request_review',
+    payload: { action: 'submitted', pull_request: pull(1) } });
   assert.equal(await runHoldCheck(h), false);
   assert.ok(!h.statuses.some((s) => s.state === 'success'));
 });

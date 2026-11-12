@@ -1,0 +1,17 @@
+name: Review gate signal
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed, edited]
+
+# This PR-controlled event must never publish statuses or run reviewed code.
+# The default-branch workflow_run handler independently rereads live authority;
+# neither this job nor any artifacts/output carry approval authority.
+permissions: {}
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: 'true'

@@ -48,8 +48,14 @@ The reusable workflow is `.github/workflows/merge-gate.yml`. Pin `uses: cswenor/
 Callers must pass literal `source_repository: cswenor/fleet-review-bot` and `source_sha: <the-same-reviewed-full-commit>`, trigger on `pull_request_target` hold/body/draft changes and `merge_group: checks_requested`, and grant `contents: read`, `pull-requests: read`, `statuses: write`. See the workflow's complete invocation example. It publishes the explicit `merge-gate` commit status on the live PR or synthetic head, not a misleading base-SHA Actions check. Protect the caller workflow and its source pin as release authority. Queue membership is conservatively the complete contiguous prefix through the matching synthetic head; this can block an earlier entry outside the minimal group rather than risk omitting a held member.
 
 For native bot-authorized merging, also pass a protected literal
-`review_app: <your-review-App-slug>` and trigger the caller on
-`pull_request_review` actions `submitted`, `dismissed`, and `edited`.
+`review_app: <your-review-App-slug>`. Install `review-gate-signal.yml` (pinned
+from this source) as a separate **unprivileged** `pull_request_review` signal
+workflow, and trigger the trusted caller on `workflow_run` completion of
+`Review gate signal`. Never give `pull_request_review` a status-write token:
+its workflow configuration is PR-controlled and fork tokens cannot revoke
+statuses. The default-branch-controlled completion handler ignores signal
+artifacts, branch, conclusion and claimed membership, then sweeps all live
+open PRs using fresh GitHub authority reads.
 The gate resolves the App's canonical GitHub Bot identity and requires its
 latest decisive review to be `APPROVED` on the exact live PR head, for every
 queue member and every open PR sharing a status head. Stale, dismissed,
