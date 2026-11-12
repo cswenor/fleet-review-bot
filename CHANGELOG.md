@@ -1,12 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.1.0
 
 - Add an annotated-semver release workflow with verified main ancestry, full tests/image build, protected publication environment, immutable digest receipts and refusal to replace existing image tags/releases.
 - Add an App-owned app-approval required check for exact-head approvals and holds, signed review/head/merge-group events and periodic live reconciliation of every PR and queue prefix; generic Actions hold enforcement remains unchanged.
-
-## 0.1.0
-
 - Extract a project-neutral, single-repository review bot with synthetic fixtures and fresh public history.
 - Default to review-only: both custom merge lane and batch merging are disabled.
 - Keep native GitHub auto-merge/queue as the supported release path, with required hold enforcement and explicit release authority.
