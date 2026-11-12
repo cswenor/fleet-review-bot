@@ -202,3 +202,41 @@ test('App approval cannot authorize unsupported base branches or their synthetic
       head_ref: 'refs/heads/gh-readonly-queue/release/pr-1-fixture' } });
   assert.equal(result(f, sha('d')).conclusion, 'failure');
 });
+
+test('main PR evaluation cannot clear a same-head unsupported base failure', async () => {
+  const pulls = [pr(1), pr(2)];
+  pulls[1].base.ref = 'release';
+  const f = fixture({ pulls });
+  await f.delivery('pull_request_review', 'submitted', pulls[1]);
+  assert.equal(result(f).conclusion, 'failure');
+  await f.delivery('pull_request_review', 'submitted', pulls[0]);
+  assert.equal(result(f).conclusion, 'failure');
+  assert.ok(!f.writes.some((write) => write.conclusion === 'success'));
+});
+
+test('restart plus unavailable queue discovery revokes durable prior success instead of forgetting it', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'approval-receipts-'));
+  const path = join(directory, 'state.sqlite');
+  let store = new Store(path);
+  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
+  const queue = [{ position: 1, baseCommit: { oid: sha('c') }, headCommit: { oid: sha('d') },
+    pullRequest: { number: 1, headRefOid: sha('a') } }];
+  const refs = [{ ref: 'refs/heads/gh-readonly-queue/main/pr-1-fixture', object: { sha: sha('d') } }];
+  const f = fixture({ queue, refs });
+  let gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  await gate.reconcile();
+  assert.equal(result(f, sha('d')).conclusion, 'success');
+  store.close();
+  store = new Store(path);
+  gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  const graphql = f.github.graphql;
+  f.github.graphql = async () => { throw new Error('Queue discovery unavailable'); };
+  f.reviews.set(1, []);
+  await assert.rejects(gate.reconcile());
+  assert.equal(result(f, sha('d')).conclusion, 'failure');
+  f.github.graphql = graphql;
+  f.reviews.set(1, approved());
+  f.advance();
+  await gate.reconcile();
+  assert.equal(result(f, sha('d')).conclusion, 'success');
+});

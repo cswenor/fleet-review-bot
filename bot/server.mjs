@@ -219,7 +219,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (!encodedKey || !/^[A-Za-z0-9+/]+={0,2}$/u.test(encodedKey)) throw new Error('Invalid GITHUB_APP_PRIVATE_KEY_B64');
   const budget = new GitHubBudget({ store, scope: `${REVIEW_APP_ID}:${REPOSITORY}`, log });
   const github = new GitHubApp({ appId: REVIEW_APP_ID, privateKey: Buffer.from(encodedKey, 'base64').toString('utf8'), repo: REPOSITORY, log, budget });
-  const approvalGate = laneConfig.mergeLaneEnabled || requestedMode === 'off' ? null : new ApprovalGate({ github });
+  const approvalGate = laneConfig.mergeLaneEnabled || requestedMode === 'off' ? null : new ApprovalGate({ github, store });
   const approval = new Approval({ store, github, mode: requestedMode, ...laneConfig, log,
     admit: async () => (await admission.refresh({ fresh: true })).mode === 'approve' });
   const secrets = [token, judgeToken].filter(Boolean);

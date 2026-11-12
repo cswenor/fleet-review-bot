@@ -77,6 +77,12 @@ current groups after approval returns.
 Only publication receipts and immutable Bot identity are cached; approval,
 hold and queue authority are always read afresh. Unchanged results are not
 republished, avoiding check-event churn and unnecessary review API consumption.
+Known head/check receipts are scoped to App and repository in SQLite and survive
+restart. Incomplete PR/queue discovery or revocation fails the refresh and
+attempts to revoke every known check; those receipts are retained until a
+complete live snapshot proves a head retired. GitHub API write outages can
+prevent remote revocation: disarm/dequeue for an emergency stop, and never
+describe this asynchronous check as an atomic merge fence.
 
 A successful `codex-review` judge check alone does not prove an approval was
 published. Ordinary approval-count rules cannot select a required App reviewer.

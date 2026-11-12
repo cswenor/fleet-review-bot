@@ -118,7 +118,7 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
       }
       return pass;
     } catch (error) {
-      core.setFailed(error.message);
+      core.error(error.message);
       return false;
     }
   }
@@ -184,6 +184,7 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
         numbers.add(candidate.number);
         bases.add(candidate.base.ref);
         if (candidate.head.sha === sharedHead) {
+          if (reviewer) requireData(candidate.base.ref === 'main', 'Shared head includes an unsupported App base branch');
           await requireApproval(candidate.number, sharedHead);
           results.push(inspectPull(candidate,
             { number: candidate.number, head: sharedHead, base: candidate.base.ref }));

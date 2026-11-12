@@ -111,6 +111,8 @@ export class Store {
         created_at INTEGER,started_at INTEGER,finished_at INTEGER,execution_exit_json TEXT);
       CREATE TABLE IF NOT EXISTS check_output_receipts(app_id INTEGER NOT NULL,repo TEXT NOT NULL,check_run_id INTEGER NOT NULL,
         publication_id TEXT NOT NULL,head_sha TEXT NOT NULL,output_sha256 TEXT NOT NULL,PRIMARY KEY(app_id,repo,check_run_id));
+      CREATE TABLE IF NOT EXISTS approval_gate_heads(app_id INTEGER NOT NULL,repo TEXT NOT NULL,
+        head_sha TEXT NOT NULL,check_run_id INTEGER,conclusion TEXT,PRIMARY KEY(app_id,repo,head_sha));
       CREATE TABLE IF NOT EXISTS findings(pr INTEGER,finding_id TEXT,first_review_id INTEGER,last_review_id INTEGER,
         severity TEXT,file TEXT,line INTEGER,title TEXT,scenario TEXT,status TEXT,comment_id INTEGER,PRIMARY KEY(pr,finding_id));
       CREATE TABLE IF NOT EXISTS shepherd(pr INTEGER PRIMARY KEY,comment_id INTEGER,status_sha256 TEXT,updated_at INTEGER NOT NULL);
