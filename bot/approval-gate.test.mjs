@@ -396,3 +396,72 @@ test('periodic group publication failure does not revoke other PR or synthetic h
   assert.equal(result(f, sha('e')).conclusion, 'failure');
   for (const head of ['a', 'f', 'd']) assert.equal(result(f, sha(head)).conclusion, 'success');
 });
+
+test('PR enqueue discovery loss revokes only its durable dependents and recovers', async (t) => {
+  const f = queuedFixture();
+  const directory = await mkdtemp(join(tmpdir(), 'approval-dependencies-'));
+  const path = join(directory, 'state.sqlite');
+  let store = new Store(path);
+  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
+  let gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  await gate.reconcile();
+  store.close();
+  store = new Store(path);
+  gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  const graphql = f.github.graphql;
+  f.github.graphql = async () => { throw new Error('Enqueue discovery temporarily unavailable'); };
+  const before = f.writes.length;
+  await assert.rejects(gate.delivery('pull_request', {
+    action: 'edited', repository: { full_name: repository }, pull_request: f.pulls[1],
+  }));
+  assert.deepEqual(f.writes.slice(before).map((write) => write.head_sha).sort(), [sha('b'), sha('e')].sort());
+  assert.equal(result(f, sha('b')).conclusion, 'failure');
+  assert.equal(result(f, sha('e')).conclusion, 'failure');
+  for (const head of ['a', 'f', 'd']) assert.equal(result(f, sha(head)).conclusion, 'success');
+  f.github.graphql = graphql;
+  await gate.delivery('pull_request', {
+    action: 'edited', repository: { full_name: repository }, pull_request: f.pulls[1],
+  });
+  assert.equal(result(f, sha('b')).conclusion, 'success');
+  await gate.delivery('merge_group', f.payload);
+  assert.equal(result(f, sha('e')).conclusion, 'success');
+});
+
+test('unknown legacy dependency receipts fail closed until fresh reconciliation', async (t) => {
+  const f = queuedFixture();
+  const directory = await mkdtemp(join(tmpdir(), 'approval-legacy-dependencies-'));
+  const store = new Store(join(directory, 'state.sqlite'));
+  t.after(async () => { store.close(); await rm(directory, { recursive: true, force: true }); });
+  let gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  await gate.reconcile();
+  // Model pre-migration authority: the additive column has no membership proof.
+  store.run('UPDATE approval_gate_heads SET dependencies_json=NULL');
+  gate = new ApprovalGate({ github: f.github, store, now: f.gate.now });
+  const graphql = f.github.graphql;
+  f.github.graphql = async () => { throw new Error('Queue unavailable'); };
+  await assert.rejects(gate.delivery('pull_request', {
+    action: 'edited', repository: { full_name: repository }, pull_request: f.pulls[1],
+  }));
+  for (const head of ['a', 'b', 'f', 'd', 'e']) assert.equal(result(f, sha(head)).conclusion, 'failure');
+  f.github.graphql = graphql;
+  await gate.reconcile();
+  for (const head of ['a', 'b', 'f', 'd', 'e']) assert.equal(result(f, sha(head)).conclusion, 'success');
+});
+
+test('an early group publication error cannot skip later stale-group validation', async () => {
+  const f = queuedFixture();
+  await f.gate.reconcile();
+  f.gate.checks.set(sha('d'), { ...result(f, sha('d')), conclusion: 'failure' });
+  f.pulls[1].head.sha = sha('8');
+  f.reviews.set(2, approved(sha('8')));
+  const request = f.github.request;
+  f.github.request = async (method, path, body) => {
+    const response = await request(method, path, body);
+    if (method === 'PATCH' && response.head_sha === sha('d')) throw new Error('Response lost');
+    return response;
+  };
+  f.advance();
+  await assert.rejects(f.gate.reconcile());
+  assert.equal(result(f, sha('e')).conclusion, 'failure');
+  assert.equal(result(f, sha('f')).conclusion, 'success');
+});
