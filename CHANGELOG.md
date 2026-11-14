@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Keep new merge-group approval checks pending while initial queue membership/ref visibility settles (five reads with 250 ms, 1 s, 2 s and 4 s backoff). Exhaustion fails closed for that synthetic head; member approval and hold failures are never retried.
+- Scope merge-group evaluation/publication failures to that group's synthetic head, preserving independently verified PR heads and other groups. Repository-wide discovery failures during reconciliation still revoke known authority.
+
 ## 0.1.0
 
 - Add an annotated-semver release workflow with verified main ancestry, full tests/image build, protected publication environment, immutable digest receipts and refusal to replace existing image tags/releases.

@@ -1,5 +1,6 @@
 import { REVIEW_BOT } from './identity.mjs';
 import { readQueue, runHoldCheck } from './hold-check.mjs';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 export const APPROVAL_GATE = 'app-approval';
 const SHA = /^[0-9a-f]{40}$/u;
@@ -7,13 +8,14 @@ const SHA = /^[0-9a-f]{40}$/u;
 // Only the deployed App's installation token publishes this check. Actions
 // callers retain the generic hold-only status; no PR workflow is authority.
 export class ApprovalGate {
-  constructor({ github, store = null, now = Date.now, intervalMs = 300000, reviewer = REVIEW_BOT }) {
+  constructor({ github, store = null, now = Date.now, intervalMs = 300000, reviewer = REVIEW_BOT, wait = sleep }) {
     this.github = github;
     this.store = store;
     this.now = now;
     this.intervalMs = intervalMs;
     this.nextAt = 0;
     this.reviewer = reviewer;
+    this.wait = wait;
     this.checks = new Map();
     this.observed = null;
     let identity;
@@ -112,12 +114,25 @@ export class ApprovalGate {
     let failed = false;
     let incomplete = false;
     const core = { setFailed: () => { failed = true; }, error: () => { incomplete = true; } };
+    const affected = new Set();
     const pass = await runHoldCheck({ github: this.adapter,
       context: { repo: this.repo, eventName, payload }, core,
       reviewApp: this.reviewer.login.slice(0, -'[bot]'.length),
-      publishStatus: (sha, state, description) => this.publish(sha, state, description) });
+      publishStatus: (sha, state, description) => {
+        affected.add(sha);
+        return this.publish(sha, state, description);
+      },
+      settleGroup: async (resolve) => {
+        for (const delay of [250, 1000, 2000, 4000, null]) {
+          try { return await resolve(); }
+          catch (error) {
+            if (delay === null) throw error;
+            await this.wait(delay);
+          }
+        }
+      } });
     if (incomplete) {
-      await this.revokeKnown();
+      await this.revokeKnown(eventName === 'merge_group' ? affected : this.checks.keys());
       throw new Error('Approval-gate membership or revocation incomplete');
     }
     return pass && !failed;
@@ -138,14 +153,16 @@ export class ApprovalGate {
         if (pr.state === 'open') await this.evaluate('pull_request_target', { action: 'edited', pull_request: pr });
       }
     } catch (error) {
-      await this.revokeKnown();
+      await this.revokeKnown(event === 'merge_group'
+        ? [payload.merge_group?.head_sha].filter((sha) => SHA.test(sha))
+        : this.checks.keys());
       throw error;
     }
   }
 
-  async revokeKnown() {
+  async revokeKnown(heads = this.checks.keys()) {
     let failed = false;
-    for (const sha of [...this.checks.keys()]) {
+    for (const sha of [...heads]) {
       try { await this.publish(sha, 'failure', 'Live approval membership unavailable; prior authority revoked'); }
       catch { failed = true; }
     }
@@ -157,6 +174,7 @@ export class ApprovalGate {
     this.nextAt = this.now() + this.intervalMs;
     this.observed = new Set();
     let complete = false;
+    let revokeHeads;
     try {
       await this.evaluate('approval_reconcile', { action: 'reconcile' });
       // Webhook loss must not preserve stale synthetic-head success. Resolve
@@ -167,6 +185,7 @@ export class ApprovalGate {
       if (!Array.isArray(refs)) throw new Error('Unknown approval-gate queue refs');
       for (const entry of entries) {
         const sha = entry?.headCommit?.oid;
+        revokeHeads = [sha];
         const matches = refs.filter((ref) => ref.object?.sha === sha
           && ref.ref?.startsWith('refs/heads/gh-readonly-queue/main/'));
         if (matches.length !== 1) {
@@ -179,7 +198,7 @@ export class ApprovalGate {
       }
       complete = true;
     } catch (error) {
-      await this.revokeKnown();
+      await this.revokeKnown(revokeHeads ?? this.checks.keys());
       throw error;
     } finally {
       if (complete) for (const sha of this.checks.keys()) if (!this.observed.has(sha)) {
