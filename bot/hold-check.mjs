@@ -90,7 +90,7 @@ function snapshot(entries) {
   return JSON.stringify([...entries].sort((a, b) => a.position - b.position));
 }
 
-export async function runHoldCheck({ github, context, core, reviewApp = '', publishStatus }) {
+export async function runHoldCheck({ github, context, core, reviewApp = '', publishStatus, settleGroup = (resolve) => resolve(), rememberGroup = () => {} }) {
   if (context.eventName === 'approval_reconcile') {
     // Only the independently deployed App invokes this sweep, never a
     // PR-controlled workflow. All authority comes from fresh live API reads.
@@ -217,9 +217,16 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
         const { data } = await github.rest.git.getRef({ ...repo, ref: group.head_ref.slice('refs/'.length) });
         requireData(data?.object?.sha === target, 'Stale group head');
       };
-      await checkRef();
-      entries = await readQueue(github, repo, base);
-      const members = groupMembers(group, entries);
+      // A checks_requested delivery can precede visibility of its queue/ref.
+      // Retry discovery only: approval/hold failures must still revoke promptly.
+      const members = await settleGroup(async () => {
+        await checkRef();
+        const current = await readQueue(github, repo, base);
+        const resolved = groupMembers(group, current);
+        entries = current;
+        return resolved;
+      });
+      await rememberGroup(target, members);
       const results = [];
       for (const member of members) results.push(await livePull(member.pullRequest.number, member.pullRequest.headRefOid, base));
       requireData(results.every((result) => result.pass), 'A merge group member is held, draft, or has an unticked Gate');
@@ -270,7 +277,8 @@ export async function runHoldCheck({ github, context, core, reviewApp = '', publ
           await status(sha, 'failure', 'PR hold or approval invalidated queue authority; re-evaluation required');
         }
       } catch (invalidationError) {
-        core.error(`Queue authority could not be fully invalidated: ${invalidationError.message}`);
+        core.error(`Queue authority could not be fully invalidated: ${invalidationError.message}`,
+          { number: pull.number, head: target });
       }
     }
     core.setFailed(error.message);

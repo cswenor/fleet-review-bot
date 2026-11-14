@@ -126,6 +126,9 @@ export class Store {
       ${APPROVAL_SCHEMA}`);
     try { this.migrateReviews(); this.migrateMergeBatch(); }
     catch (error) { this.db.close(); throw error; }
+    if (!this.all('PRAGMA table_info(approval_gate_heads)').some((column) => column.name === 'dependencies_json')) {
+      this.db.exec('ALTER TABLE approval_gate_heads ADD COLUMN dependencies_json TEXT');
+    }
     if (!this.all('PRAGMA table_info(approvals)').some((column) => column.name === 'publication_id')) {
       // Phase 2 never wrote approval receipts. Preserve unexpected legacy data rather than reinterpret it.
       if (this.get('SELECT COUNT(*) AS count FROM approvals').count !== 0) throw new Error('Legacy approval receipts require migration');
