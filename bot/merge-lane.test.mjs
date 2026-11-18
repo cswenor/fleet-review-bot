@@ -140,7 +140,7 @@ async function fixture(t) {
   const shepherd = new Shepherd({ store, github });
   const options = { store, github, approval, shepherd, publisher: { updateEvidence: async () => {} },
     batchMaxSize: 1,
-    mirror: { reviewModel: 'openai-codex/gpt-6.1-sol', reviewThinking: 'medium' },
+    mirror: { reviewModel: 'openai-codex/gpt-6.2-sol', reviewThinking: 'medium' },
     batchMirror: {
       dependencies: async (_batch, members) => new Map(members.map((member) => [member.pr, []])),
       ancestry: async (batch, members) => ({ baseAncestors: new Set(),
@@ -173,8 +173,8 @@ async function fixture(t) {
   f.approve = async (number) => {
     const pr = f.prs.get(number);
     const row = store.enqueue({ pr: number, head_sha: pr.head.sha, base_ref: 'main', due: 0, reason: 'opened' }, Date.now());
-    const review = { publication_id: row.id, review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-      result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+    const review = { publication_id: row.id, review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+      result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
       verdict: { decision: 'approve' } };
     store.update(row.id, { status: 'completed', result_json: JSON.stringify(review) });
     await approval.run({ ...row, publication_id: row.id }, review);

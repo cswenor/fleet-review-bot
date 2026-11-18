@@ -8,7 +8,7 @@ const report = { reviewed_sha: sha, inputs_sufficient: true, findings: [], sugge
 function fixture({ result = report, text, fallback = false } = {}) {
   return [
     { type: 'session', version: 3, id: 'review-session' },
-    { type: 'model_change', model: 'openai-codex/gpt-6.1-sol', resolvedModelIsFallback: false },
+    { type: 'model_change', model: 'openai-codex/gpt-6.2-sol', resolvedModelIsFallback: false },
     { type: 'thinking_level_change', thinkingLevel: 'medium', configured: null },
     { type: 'credential_pin', provider: 'openai-codex', hash: '0123456789ab-redacted' },
     ...['review/diff.patch', 'review/head/src/example.mjs:1-40'].flatMap((path, index) => [
@@ -18,10 +18,10 @@ function fixture({ result = report, text, fallback = false } = {}) {
         toolName: 'read', isError: false, content: [{ type: 'text', text: 'fixture source' }] } },
     ]),
     ...(fallback ? [{ type: 'model_change', model: 'anthropic/claude-opus-5-5', role: 'fallback', resolvedModelIsFallback: true },
-      { type: 'message', message: { role: 'assistant', provider: 'openai-codex', model: 'gpt-6.1-sol',
+      { type: 'message', message: { role: 'assistant', provider: 'openai-codex', model: 'gpt-6.2-sol',
         stopReason: 'error', content: [], usage: { totalTokens: 0 } } }] : []),
     { type: 'message', message: { role: 'assistant', provider: fallback ? 'anthropic' : 'openai-codex',
-      model: fallback ? 'claude-opus-5-5' : 'gpt-6.1-sol', stopReason: 'stop',
+      model: fallback ? 'claude-opus-5-5' : 'gpt-6.2-sol', stopReason: 'stop',
       content: [{ type: 'text', text: text ?? `\`\`\`json\n${JSON.stringify(result)}\n\`\`\`` }],
       usage: { input: 8, output: 2, cacheRead: 3, cacheWrite: 0, totalTokens: 13 } } },
     { type: 'custom', customType: 'session_exit', data: { reason: 'dispose', kind: 'normal' } },
@@ -42,7 +42,7 @@ test('normal and fallback receipts derive served model from successful assistant
   for (const fallback of [false, true]) {
     const session = parseSession(fixture({ fallback }));
     assert.equal(classify(session).pass, true);
-    assert.equal(session.servedModel, fallback ? 'anthropic/claude-opus-5-5' : 'openai-codex/gpt-6.1-sol');
+    assert.equal(session.servedModel, fallback ? 'anthropic/claude-opus-5-5' : 'openai-codex/gpt-6.2-sol');
     assert.equal(session.credentialPin.hashPrefix, '0123456789ab');
     assert.equal(session.usage.totalTokens, 13);
     assert.equal(session.id, 'review-session');
@@ -50,7 +50,7 @@ test('normal and fallback receipts derive served model from successful assistant
   }
 });
 test('configured primary model and effort must match every successful turn and model change', () => {
-  for (const reviewModel of ['openai-codex/gpt-6.1-sol', 'anthropic/claude-opus-5-5']) {
+  for (const reviewModel of ['openai-codex/gpt-6.2-sol', 'anthropic/claude-opus-5-5']) {
     for (const reviewThinking of ['low', 'medium', 'high']) {
       const session = parseSession(rewriteFixture((entries) => {
         const [provider, model] = reviewModel.split('/');
@@ -60,8 +60,8 @@ test('configured primary model and effort must match every successful turn and m
         Object.assign(entries.find((entry) => entry.message?.role === 'assistant').message, { provider, model });
       }));
       assert.equal(classify(session, { reviewModel, reviewThinking }).pass, true);
-      const otherModel = reviewModel === 'openai-codex/gpt-6.1-sol'
-        ? 'anthropic/claude-opus-5-5' : 'openai-codex/gpt-6.1-sol';
+      const otherModel = reviewModel === 'openai-codex/gpt-6.2-sol'
+        ? 'anthropic/claude-opus-5-5' : 'openai-codex/gpt-6.2-sol';
       assert.ok(classify(session, { reviewModel: otherModel, reviewThinking }).reasons.includes('model_not_allowed'));
       const changedModel = { ...session, modelChanges: [...session.modelChanges, { model: otherModel }] };
       assert.ok(classify(changedModel, { reviewModel, reviewThinking }).reasons.includes('model_not_allowed'));
@@ -203,7 +203,7 @@ test('every successful assistant turn and non-primary model change must be autho
       usage: { totalTokens: 3 }, content: [],
     } });
   }));
-  assert.equal(intermediate.servedModel, 'openai-codex/gpt-6.1-sol');
+  assert.equal(intermediate.servedModel, 'openai-codex/gpt-6.2-sol');
   assert.ok(classify(intermediate).reasons.includes('model_not_allowed'));
   for (const change of [{ role: undefined }, { resolvedModelIsFallback: false },
     { model: 'anthropic/other' }]) {

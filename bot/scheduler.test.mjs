@@ -26,7 +26,7 @@ async function fixture(t) {
   const github = { repo: 'example-org/example-project', appId: 1001, request: async () => ({ state: 'open', draft: false, head: { sha: sha('c'), ref: 'feature', repo: { full_name: 'example-org/example-project' } }, base: { ref: 'main', repo: { full_name: 'example-org/example-project' } } }), paginate: async () => [] };
   const publisher = { queued: async (row) => store.update(row.id, { check_run_id: row.id + 10 }),
     terminal: async (row, conclusion, reason) => calls.push(['check', row.id, conclusion, reason]), started: async () => {} };
-  const mirror = { reviewModel: 'openai-codex/gpt-6.1-sol', reviewThinking: 'medium',
+  const mirror = { reviewModel: 'openai-codex/gpt-6.2-sol', reviewThinking: 'medium',
     prepare: async () => ({ base_sha: sha('d') }), carry: async () => null };
   const verdict = { evaluate: async (review) => ({
     decision: review.findings?.some((finding) => finding.status !== 'resolved') ? 'block' : 'approve',
@@ -1135,8 +1135,8 @@ function verdictReport(f) {
   return { repo: f.github.repo, pr: 1, head_sha: sha('c'), base_sha: sha('d'),
     policy: { revision: sha('e') }, priorFindingIds: [], priorFindings: [], replies: [],
     prTitle: 'Change', reportText: 'No findings.', findings: [], suggestions: [], diff: '',
-    review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-    result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } } };
+    review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+    result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } } };
 }
 function publicationRow(f, attempt = 1) {
   const row = f.store.enqueue({ base_ref: 'main', pr: 1, head_sha: sha('c'), due: 0, reason: attempt === 1 ? 'opened' : 'ambiguous_rereview', attempt }, 1);

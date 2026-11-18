@@ -690,7 +690,7 @@ test('health cannot acknowledge a new request ahead of the serialized scheduler'
 });
 
 test('approval admission follows configured reviewer provider and rejects another healthy provider', async () => {
-  for (const [reviewModel, provider] of [['openai-codex/gpt-6.1-sol', 'openai-codex'], ['anthropic/claude-opus-5-5', 'anthropic']]) {
+  for (const [reviewModel, provider] of [['openai-codex/gpt-6.2-sol', 'openai-codex'], ['anthropic/claude-opus-5-5', 'anthropic']]) {
     const admission = (credentials) => admitStartupMode({ mode: 'approve', reviewModel,
       gatewayUrl: 'http://gateway:4000', token: 'fixture-token', judgeToken: 'fixture-judge',
       fetchImpl: async () => ({ ok: true, json: async () => ({ credentials }) }) });

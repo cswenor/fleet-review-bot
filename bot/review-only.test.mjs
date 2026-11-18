@@ -44,7 +44,7 @@ async function fixture(t, mergeLaneEnabled = false) {
   const approval = new Approval({ store, github, mergeLaneEnabled, mode: 'approve', admit: async () => true });
   const forbidden = new Proxy({}, { get() { throw new Error('Lane dependency accessed'); } });
   const scheduler = new Scheduler({ store, github, publisher, approval, mergeLaneEnabled, mode: 'approve',
-    mirror: { reviewModel: 'openai-codex/gpt-6.1-sol', reviewThinking: 'medium',
+    mirror: { reviewModel: 'openai-codex/gpt-6.2-sol', reviewThinking: 'medium',
       prepare: async () => ({ base_sha: 'b'.repeat(40) }) },
     fetchImpl: async (_url, { method }) => { assert.equal(method, 'POST'); checks.push('runner'); return { status: 202 }; },
     shepherd: forbidden, batchAuthor: forbidden, batchMirror: forbidden, readMergeDrain: async () => null,
@@ -54,8 +54,8 @@ async function fixture(t, mergeLaneEnabled = false) {
 
 function completed(f, pr = 1) {
   const row = f.store.enqueue({ pr, head_sha: sha, base_ref: 'main', due: 0, reason: 'opened' }, 1000000);
-  const review = { publication_id: row.id, review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+  const review = { publication_id: row.id, review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
     verdict: { decision: 'approve' }, findings: [] };
   f.store.update(row.id, { status: 'completed', result_json: JSON.stringify(review) });
   return { row: f.store.review(row.id), review };
@@ -109,8 +109,8 @@ test('normal held source review finishes checks and exact-head APPROVE without i
   const row = f.store.active(1);
   await f.scheduler.start(row);
   assert.equal(f.store.review(row.id).status, 'running');
-  const review = { publication_id: row.id, review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+  const review = { publication_id: row.id, review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
     verdict: { decision: 'approve' }, findings: [] };
   await f.scheduler.publishNow(f.store.review(row.id), review);
   assert.equal(f.store.review(row.id).status, 'completed');
@@ -202,8 +202,8 @@ test('retained sealed carrier reviews freeze at all lifecycle boundaries while s
   await f.scheduler.recover();
   assert.equal(f.store.review(source.id).status, 'running', 'frozen running carrier cannot exhaust the single source slot');
   await f.scheduler.publishNow(f.store.review(source.id), {
-    publication_id: source.id, review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+    publication_id: source.id, review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
     verdict: { decision: 'approve' }, findings: [],
   });
   await f.scheduler.tick();

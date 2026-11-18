@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 export const RUN_ID = /^[0-9]+-[0-9a-f]{12}-[0-9a-z]{8}$/u;
 export function validJob(job) {
   return job && Object.keys(job).sort().join(',') === 'maxTime,model,thinking'
-    && ['openai-codex/gpt-6.1-sol', 'anthropic/claude-opus-5-5'].includes(job.model)
+    && ['openai-codex/gpt-6.2-sol', 'anthropic/claude-opus-5-5'].includes(job.model)
     && ['low', 'medium', 'high'].includes(job.thinking) && job.maxTime === 600;
 }
 const tail = (old, chunk, limit) => Buffer.concat([old, Buffer.from(chunk)]).subarray(-limit);

@@ -32,7 +32,7 @@ Fleet's planned `fleet review-bot` commands will drive this contract; those comm
 | Mode | `REVIEW_BOT_MODE=off|advisory|approve` is required; use advisory until calibration and live protection are proved |
 | Credentials | `GITHUB_APP_PRIVATE_KEY_B64`, `GITHUB_WEBHOOK_SECRET`, `OMP_GATEWAY_TOKEN`, `TYPESAFE_API_KEY`; names only, never values in source/logs/argv |
 | Runtime | `RUNNER_URL` (default `http://runner:8081`), `GATEWAY_URL` (`http://gateway:4000`), `STATE_ROOT=/state`, `WORK_ROOT=/work`, `SESSIONS_ROOT=/sessions`, `PORT=8080` |
-| Reviewer route | `REVIEW_MODEL` defaults to `openai-codex/gpt-6.1-sol`; also supports `anthropic/claude-opus-5-5`. `REVIEW_THINKING=low|medium|high` defaults to medium. The runner and transcript classifier reject unsupported or mismatched routes |
+| Reviewer route | `REVIEW_MODEL` defaults to `openai-codex/gpt-6.2-sol`; also supports `anthropic/claude-opus-5-5`. `REVIEW_THINKING=low|medium|high` defaults to medium. The runner and transcript classifier reject unsupported or mismatched routes |
 | Runner policy | Mount per-instance `reviewer-models.yml` and `reviewer-overlay.yml` read-only at `/opt/pr-review-bot/config`; stock policy disables fallback, advisors and saved-reset spending |
 | Builder CLI | `scripts/builder/builder.mjs gh ...` uses `REVIEW_BOT_BUILDER_REAL_GH` for the installed real gh executable; mark builder checkouts with `git config review-bot.builder true` to require Builder App credentials and refuse `gh auth`. Unmarked checkouts retain ordinary gh identity |
 | Limits | `REVIEW_CONCURRENCY=2`, `RETENTION_DAYS=180`, `RECONCILE_INTERVAL_MS=60000`; deployment owner selects capacity and budgets |

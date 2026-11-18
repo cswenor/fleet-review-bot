@@ -14,7 +14,7 @@ test('real-size archive is fully consumed; streaming budget overflow still abort
   const source = join(root, 'source');
   await mkdir(join(source, '.omp'), { recursive: true });
   await mkdir(join(source, 'large'));
-  await writeFile(join(source, '.omp/config.yml'), 'modelRoles:\n  review: openai-codex/gpt-6.1-sol:medium\n');
+  await writeFile(join(source, '.omp/config.yml'), 'modelRoles:\n  review: openai-codex/gpt-6.2-sol:medium\n');
   await writeFile(join(source, '.omp/unadvised-review.yml'), 'advisor: {enabled: false}\n');
   const count = 3000;
   const payload = Buffer.alloc(35000, 'a');

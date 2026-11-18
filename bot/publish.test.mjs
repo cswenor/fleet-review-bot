@@ -17,7 +17,7 @@ function fixture() {
   const store = { update: (id, values) => ({ id, ...values }), run: (...args) => updates.push(args) };
   const publisher = new Publisher({ github, store, secrets: ['fixture-gateway-token'], now: () => 0 });
   const review = { repo: github.repo, pr: 1, head_sha: head, base_sha: 'b'.repeat(40), policy: { source: 'main@' + head },
-    priorFindingIds: [], findings: [finding], suggestions: [], result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } } };
+    priorFindingIds: [], findings: [finding], suggestions: [], result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } } };
   review.verdict = { decision: 'block', model: 'jev-1.13.0', request_ids: ['fixture-verdict'] };
   return { publisher, bodies, updates, review };
 }

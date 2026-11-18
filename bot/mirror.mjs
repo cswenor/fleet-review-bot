@@ -46,7 +46,7 @@ export function loadThresholds({ git, mainSha }) {
 
 export class Mirror {
   constructor({ github, stateRoot = '/state', workRoot = '/work', sessionsRoot = '/sessions', secrets = [],
-    reviewModel = 'openai-codex/gpt-6.1-sol', reviewThinking = 'medium',
+    reviewModel = 'openai-codex/gpt-6.2-sol', reviewThinking = 'medium',
     executeImpl = executeProcess, timeouts = { fetch: 120000, git: 30000 } }) {
     if (!validJob({ model: reviewModel, thinking: reviewThinking, maxTime: 600 })) throw new Error('Invalid review model or thinking');
     Object.assign(this, { github, stateRoot, workRoot, sessionsRoot, secrets, reviewModel, reviewThinking,

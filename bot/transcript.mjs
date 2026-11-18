@@ -1,6 +1,6 @@
 import { validJob } from './runner.mjs';
 
-const PRIMARY_MODEL = 'openai-codex/gpt-6.1-sol';
+const PRIMARY_MODEL = 'openai-codex/gpt-6.2-sol';
 const FALLBACK_MODEL = 'anthropic/claude-opus-5-5';
 const authorizedFallback = (change) => change.model === FALLBACK_MODEL
   && change.role === 'fallback' && change.resolvedModelIsFallback === true;

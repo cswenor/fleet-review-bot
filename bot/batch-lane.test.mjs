@@ -216,8 +216,8 @@ async function fixture(t, { carrierRef = 'integration/carrier', collectSeconds =
     const pr = f.prs.get(number);
     const row = f.store.enqueue({ pr: number, head_sha: pr.head.sha, base_ref: 'main', due: 0, reason: 'opened' }, ++f.clock);
     f.store.update(row.id, { status: 'completed', result_json: JSON.stringify({
-      review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-      result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+      review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+      result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
       verdict: { decision: 'approve' } }) });
     f.store.reserveApproval({ ...row, publication_id: row.id }, pr.node_id, ++f.clock);
     f.store.updateApproval(row.id, { github_review_id: row.id * 100, outcome: 'approved' }, ++f.clock);
@@ -341,8 +341,8 @@ test('full reconciliation selects exact-approved work above both lower-priority 
     const row = f.store.latest(number);
     f.store.update(row.id, { result_json: JSON.stringify({ repo: REPOSITORY, pr: number, publication_id: row.id,
       head_sha: row.head_sha, base_sha: f.main, findings: [], suggestions: [], priorFindingIds: [],
-      review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-      result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+      review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+      result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
       verdict: { decision: 'approve' } }) });
   }
   const budget = new GitHubBudget({ store: f.store, scope: 'essential-selection', now: () => f.clock });
@@ -365,7 +365,7 @@ test('full reconciliation selects exact-approved work above both lower-priority 
   }
   const scheduler = new Scheduler({ store: f.store, github: f.host.github, shepherd: f.host.shepherd,
     publisher: new Publisher({ store: f.store, github: f.host.github }), approval: f.host.approval,
-    mode: 'approve', mirror: { reviewModel: 'openai-codex/gpt-6.1-sol', reviewThinking: 'medium' },
+    mode: 'approve', mirror: { reviewModel: 'openai-codex/gpt-6.2-sol', reviewThinking: 'medium' },
     verdict: {}, now: () => f.clock });
   scheduler.reconcileCounts = { failed: 0, skipped: 0, deferred: 0 };
   scheduler.log = (entry) => f.logs.push(entry);
@@ -1899,7 +1899,7 @@ async function approvedLaneFixture(t, { select = true } = {}) {
   f.proofByHead.set(row.head_sha, { base: f.main, run: f.ci.get(row.head_sha).id });
   const scheduler = new Scheduler({ store: f.store, github: f.host.github, approval: f.host.approval,
     shepherd: f.host.shepherd, mode: 'approve', now: () => ++f.clock,
-    mirror: { reviewModel: 'openai-codex/gpt-6.1-sol', reviewThinking: 'medium' },
+    mirror: { reviewModel: 'openai-codex/gpt-6.2-sol', reviewThinking: 'medium' },
     publisher: { updateEvidence: async () => { throw new Error('informational update unavailable'); } },
     batchMirror: f.mirror, batchReadProof: f.readProof,
     batchConfirmTree: async ({ batch, mergedSha }) => ({ tree_sha: batch.tree_sha, merge_sha: mergedSha }) });
@@ -2386,7 +2386,7 @@ async function wireCandidateFixture(t, { evidence = false } = {}) {
   };
   const scheduler = new Scheduler({ store: f.store, github, approval: f.host.approval, shepherd: f.host.shepherd,
     mode: 'approve', now: () => f.clock, batchCollectSeconds: 180,
-    mirror: { reviewModel: 'openai-codex/gpt-6.1-sol', reviewThinking: 'medium' } });
+    mirror: { reviewModel: 'openai-codex/gpt-6.2-sol', reviewThinking: 'medium' } });
   f.host = scheduler;
   f.lane.host = scheduler;
   scheduler.batchLane = f.lane;
@@ -2479,8 +2479,8 @@ test('approved discovery hints survive real idempotent publication and signed du
     const row = f.store.latest(number);
     return f.store.update(row.id, { check_run_id: 9000 + row.id, conclusion: 'success',
       result_json: JSON.stringify({ repo: f.host.github.repo, pr: number, head_sha: row.head_sha,
-        publication_id: row.publication_id, review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
-        result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+        publication_id: row.publication_id, review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
+        result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
         verdict: { decision: 'approve' }, findings: [] }) });
   };
   for (const number of [1, 2, 3]) complete(number);

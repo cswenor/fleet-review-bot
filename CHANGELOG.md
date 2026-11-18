@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Switch the default OpenAI reviewer route and accepted model to Sol 6.2, including transcript validation and the image startup check. Existing instances must migrate their reviewer configuration to `openai-codex/gpt-6.2-sol`.
+
 ## 0.1.1
 
 - Keep new merge-group approval checks pending while initial queue membership/ref visibility settles (five reads with 250 ms, 1 s, 2 s and 4 s backoff). Exhaustion fails closed for that synthetic head; member approval and hold failures are never retried.

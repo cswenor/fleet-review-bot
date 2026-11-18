@@ -13,7 +13,7 @@ const thresholds = { model: 'jev-1.13.0', calibratedModel: 'jev-1.13.0', block: 
   approveBlockingMax: 0.3, approveSevereMax: 0.05, priorResolvedMin: 0.8 };
 test('mirror defaults to Sol/medium and validates instance review configuration', () => {
   const defaults = new Mirror({ github: {} });
-  assert.equal(defaults.reviewModel, 'openai-codex/gpt-6.1-sol');
+  assert.equal(defaults.reviewModel, 'openai-codex/gpt-6.2-sol');
   assert.equal(defaults.reviewThinking, 'medium');
   const opus = new Mirror({ github: {}, reviewModel: 'anthropic/claude-opus-5-5', reviewThinking: 'high' });
   assert.equal(opus.reviewModel, 'anthropic/claude-opus-5-5');
@@ -115,8 +115,8 @@ test('unavailable prior Git object declines carry so the current head can receiv
   mirror.fetchHead = async () => {};
   mirror.git = async (...args) => args.at(-1) === 'main' ? mainSha : headSha;
   const prior = { base_ref: 'main', head_sha: 'c'.repeat(40), base_sha: 'd'.repeat(40), result_json: JSON.stringify({
-    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
-    review_route: { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium' },
+    result: { pass: true, evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
+    review_route: { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium' },
     verdict: { decision: 'approve' }, reportText: 'No findings.',
   }) };
   assert.equal(await mirror.carry({ pr: 1, head_sha: headSha, base_ref: 'main' }, prior), null);
@@ -142,7 +142,7 @@ test('policy receipt and check evidence bind the exact trusted criteria bytes', 
   mirror.git = async (command, ...args) => {
     const path = args[0].slice(mainSha.length + 1);
     return path === '.github/review-policy.md' ? text
-      : path === '.omp/config.yml' ? 'modelRoles:\n  review: openai-codex/gpt-6.1-sol:medium\n' : 'unexpected';
+      : path === '.omp/config.yml' ? 'modelRoles:\n  review: openai-codex/gpt-6.2-sol:medium\n' : 'unexpected';
   };
   const receipt = await mirror.policyReceipt(mainSha);
   assert.equal(receipt.review_policy_text, text);
@@ -161,18 +161,18 @@ test('carry requires reviewer evidence matching the current instance model and e
   mirror.gitDir = '.';
   mirror.fetchHead = async () => assert.fail('Incompatible review must not enter carry verification');
   for (const evidence of [undefined,
-    { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'high' },
+    { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'high' },
     { servedModel: 'anthropic/claude-opus-5-5', thinkingLevel: 'medium' }]) {
     const prior = { base_ref: 'main', result_json: JSON.stringify({ result: { pass: true, evidence },
       review_route: { model: 'anthropic/claude-opus-5-5', thinking: 'high' },
       verdict: { decision: 'approve' }, reportText: 'No findings.' }) };
     assert.equal(await mirror.carry({ pr: 1, head_sha: headSha, base_ref: 'main' }, prior), null);
   }
-  for (const review_route of [undefined, { model: 'openai-codex/gpt-6.1-sol', thinking: 'high' },
+  for (const review_route of [undefined, { model: 'openai-codex/gpt-6.2-sol', thinking: 'high' },
     { model: 'anthropic/claude-opus-5-5', thinking: 'medium' }]) {
     const fallbackPrior = { base_ref: 'main', result_json: JSON.stringify({ review_route,
       result: { pass: true, evidence: { servedModel: 'anthropic/claude-opus-5-5', thinkingLevel: 'high',
-        modelChanges: [{ model: 'openai-codex/gpt-6.1-sol' }, { model: 'anthropic/claude-opus-5-5', role: 'fallback' }] } },
+        modelChanges: [{ model: 'openai-codex/gpt-6.2-sol' }, { model: 'anthropic/claude-opus-5-5', role: 'fallback' }] } },
       verdict: { decision: 'approve' }, reportText: 'No findings.',
     }) };
     assert.equal(await mirror.carry({ pr: 1, head_sha: headSha, base_ref: 'main' }, fallbackPrior), null);
@@ -189,7 +189,7 @@ test('real main-merge carry binds trusted reviewer config and overlay bytes', as
     git('config', 'user.name', 'Example'); git('config', 'user.email', 'example@example.invalid');
     await mkdir(join(root, '.github')); await mkdir(join(root, '.omp'));
     await writeFile(join(root, '.github/review-policy.md'), 'Review criteria\n');
-    await writeFile(join(root, '.omp/config.yml'), 'modelRoles:\n  review: openai-codex/gpt-6.1-sol:medium\n');
+    await writeFile(join(root, '.omp/config.yml'), 'modelRoles:\n  review: openai-codex/gpt-6.2-sol:medium\n');
     await writeFile(join(root, '.omp/unadvised-review.yml'), 'modelFallback: false\n');
     git('add', '.'); git('commit', '-qm', 'Initial policy');
     const priorBase = git('rev-parse', 'HEAD');
@@ -201,7 +201,7 @@ test('real main-merge carry binds trusted reviewer config and overlay bytes', as
     git('add', '.'); git('commit', '-qm', 'Feature');
     const priorHead = git('rev-parse', 'HEAD');
     git('switch', '-q', 'main');
-    if (change === 'config') await writeFile(join(root, '.omp/config.yml'), 'modelRoles:\n  review: openai-codex/gpt-6.1-sol:medium\ninstructions: Stricter\n');
+    if (change === 'config') await writeFile(join(root, '.omp/config.yml'), 'modelRoles:\n  review: openai-codex/gpt-6.2-sol:medium\ninstructions: Stricter\n');
     else if (change === 'overlay') await writeFile(join(root, '.omp/unadvised-review.yml'), 'modelFallback: false\ninstructions: Stricter\n');
     else if (change === 'missing-overlay') await rm(join(root, '.omp/unadvised-review.yml'));
     else await writeFile(join(root, 'README.md'), 'Unrelated main change\n');

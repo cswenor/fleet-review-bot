@@ -51,12 +51,12 @@ export function createMergeClients(env, stateRoot, mergeLaneEnabled) {
 // Reviewer readiness stays on the gateway. Hosted judge authentication is proved
 // by each successful verdict; absent credentials cannot admit approval mode.
 export async function admitStartupMode({ mode, gatewayUrl, token, judgeToken,
-  reviewModel = 'openai-codex/gpt-6.1-sol', fetchImpl = fetch }) {
+  reviewModel = 'openai-codex/gpt-6.2-sol', fetchImpl = fetch }) {
   if (mode !== 'approve') return { mode, modeDegraded: null };
   try {
     if (typeof judgeToken !== 'string' || !judgeToken || /\s/u.test(judgeToken)) throw new Error('Missing hosted judge credential');
     const provider = {
-      'openai-codex/gpt-6.1-sol': 'openai-codex',
+      'openai-codex/gpt-6.2-sol': 'openai-codex',
       'anthropic/claude-opus-5-5': 'anthropic',
     }[reviewModel];
     if (!provider) throw new Error('Unsupported review route');

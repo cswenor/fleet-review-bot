@@ -17,7 +17,7 @@ async function fixture(t) {
   Object.assign(row, store.update(row.id, { check_run_id: 10, status: 'completed', conclusion: 'success' }));
   const review = { repo: 'example-org/example-project', pr: 1, publication_id: row.id, head_sha: head,
     base_sha: 'b'.repeat(40), policy: { source: 'main@' + head }, findings: [], suggestions: [], priorFindingIds: [],
-    result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.1-sol', thinkingLevel: 'medium' } },
+    result: { pass: true, reasons: [], evidence: { servedModel: 'openai-codex/gpt-6.2-sol', thinkingLevel: 'medium' } },
     verdict: { decision: 'approve', model: 'jev-1.13.0', request_ids: ['fixture'] } };
   const sent = [];
   const github = { appId: REVIEW_APP_ID, repo: review.repo,

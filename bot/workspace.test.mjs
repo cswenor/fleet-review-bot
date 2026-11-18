@@ -11,14 +11,14 @@ function successfulReview(headSha, paths) {
   const report = { reviewed_sha: headSha, inputs_sufficient: true, findings: [], suggestions: [], prior_findings_checked: true };
   return parseSession([
     { type: 'session', id: 'inspection-session' },
-    { type: 'model_change', model: 'openai-codex/gpt-6.1-sol', resolvedModelIsFallback: false },
+    { type: 'model_change', model: 'openai-codex/gpt-6.2-sol', resolvedModelIsFallback: false },
     { type: 'thinking_level_change', thinkingLevel: 'medium' },
     ...paths.flatMap((path, index) => [
       { type: 'custom', customType: 'tool_execution_start', data: { toolCallId: `read-${index}`, toolName: 'read', args: { path } } },
       { type: 'message', message: { role: 'toolResult', toolCallId: `read-${index}`, toolName: 'read',
         isError: false, content: [{ type: 'text', text: 'source' }] } },
     ]),
-    { type: 'message', message: { role: 'assistant', provider: 'openai-codex', model: 'gpt-6.1-sol',
+    { type: 'message', message: { role: 'assistant', provider: 'openai-codex', model: 'gpt-6.2-sol',
       stopReason: 'stop', usage: { input: 8, output: 2, totalTokens: 10 },
       content: [{ type: 'text', text: `\`\`\`json\n${JSON.stringify(report)}\n\`\`\`` }] } },
     { type: 'custom', customType: 'session_exit', data: { kind: 'normal' } },

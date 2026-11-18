@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
 import { validJob, createRunner } from './runner.mjs';
-const job = { model: 'openai-codex/gpt-6.1-sol', thinking: 'medium', maxTime: 600 };
+const job = { model: 'openai-codex/gpt-6.2-sol', thinking: 'medium', maxTime: 600 };
 const id = '1-aaaaaaaaaaaa-12345678';
 const request = (server, method, url) => new Promise((done) => {
   const req = Readable.from([]); req.method = method; req.url = url;
@@ -14,7 +14,7 @@ const request = (server, method, url) => new Promise((done) => {
   server.emit('request', req, { writeHead: (value) => { status = value; }, end: (body) => done({ status, body: JSON.parse(body) }) });
 });
 test('job contract allows only supported review routes and effort levels with fixed fields and time', () => {
-  for (const model of ['openai-codex/gpt-6.1-sol', 'anthropic/claude-opus-5-5']) {
+  for (const model of ['openai-codex/gpt-6.2-sol', 'anthropic/claude-opus-5-5']) {
     for (const thinking of ['low', 'medium', 'high']) assert.equal(validJob({ ...job, model, thinking }), true);
   }
   for (const invalid of [{ ...job, extra: true }, { ...job, model: 'other/model' },
