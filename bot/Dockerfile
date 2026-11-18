@@ -15,6 +15,9 @@ RUN node --input-type=module -e 'import { createWriteStream } from "node:fs"; im
 # an existing expected-size addon without extraction. Runtime users cannot modify it.
 # The loader extracts only the selected CPU variant; stage both for read-only hosts.
 ENV PI_NATIVES_DIR=/opt/omp-natives
+COPY bot/config/reviewer-models.yml /tmp/omp-native-build/.omp/agent/models.yml
+# Exercise the real isolated-runner model metadata without a gateway credential.
+RUN node --input-type=module -e 'import { readFileSync, writeFileSync } from "node:fs"; const path = "/tmp/omp-native-build/.omp/agent/models.yml"; writeFileSync(path, readFileSync(path, "utf8").replaceAll("    apiKey: OMP_GATEWAY_TOKEN\n", ""));'
 RUN --network=none omp --version | grep -qx 'omp/18.22.2' \
     && HOME=/tmp/omp-native-build node --input-type=module -e 'import { spawnSync } from "node:child_process"; for (const variant of ["modern", "baseline"]) { const run = spawnSync("omp", ["--model", "openai-codex/gpt-6.2-sol", "--no-prewalk", "--no-title", "--no-extensions", "--no-skills", "--no-rules", "--no-lsp", "--tools", "read", "--max-time", "1", "--print", "No network native extraction"], { env: { ...process.env, PI_NATIVE_VARIANT: variant }, input: "", encoding: "utf8", timeout: 15000 }); if (run.status !== 1 || !run.stderr.includes("No API key found for openai-codex.")) throw new Error("Native extraction startup did not reach the expected credential gate: " + variant); }' \
     && test -s "/opt/omp-natives/$OMP_VERSION/pi_natives.linux-x64-modern.node" \

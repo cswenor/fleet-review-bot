@@ -3,6 +3,20 @@ providers:
     transport: pi-native
     baseUrl: http://gateway:4000
     apiKey: OMP_GATEWAY_TOKEN
+    # Codex discovers this post-release model with OAuth; isolated runners use
+    # the verified catalog metadata without receiving provider credentials.
+    models:
+      - id: gpt-6.2-sol
+        name: GPT-6.2-Sol
+        api: openai-codex-responses
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [low, medium, high, xhigh, max]
+        input: [text, image]
+        contextWindow: 500000
+        maxTokens: 128000
+        cost: {input: 2, output: 10, cacheRead: 0.1, cacheWrite: 0}
   anthropic:
     transport: pi-native
     baseUrl: http://gateway:4000

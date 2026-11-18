@@ -3,7 +3,8 @@
 ## 0.1.2
 
 - Switch the default OpenAI reviewer route and accepted model to Sol 6.2, including transcript validation and the image startup check. Existing instances must migrate their reviewer configuration to `openai-codex/gpt-6.2-sol`.
-- Pin OMP 18.22.2 with its verified public asset checksum so the bundled reviewer catalog supports Sol 6.2.
+- Pin OMP 18.22.2 with its verified public asset checksum for the updated reviewer runtime.
+- Supply verified Sol 6.2 metadata in the isolated runner policy; existing installations must update their mounted `reviewer-models.yml` alongside the image.
 
 ## 0.1.1
 
